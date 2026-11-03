@@ -32,13 +32,41 @@ UAPI="$(command -v uapi || echo /usr/bin/uapi)"
 DOMAIN=""
 [ -x "$UAPI" ] && DOMAIN="$("$UAPI" --output=json DomainInfo list_domains 2>/dev/null | jget result data main_domain)"
 
-# ---- PHP 8 لمجلد api فقط (لا يغيّر إصدار PHP لبقية الموقع) ----
-HT="$(cd ~ && pwd)/public_html/api/.htaccess"
-if [[ "$PHP" == /opt/cpanel/ea-php* ]] && [ -f "$HT" ] && ! grep -q "signalscope-php" "$HT"; then
-  EA="$(echo "$PHP" | sed -E 's#^/opt/cpanel/(ea-php[0-9]+)/.*#\1#')"
-  printf '\n# signalscope-php: يفرض %s على واجهة API\n<IfModule mime_module>\n  AddHandler application/x-httpd-%s .php\n</IfModule>\n' "$EA" "$EA" >> "$HT"
-  log "api/ يعمل الآن على $EA"
+# ---- المجلد الفعلي للموقع (Document Root) ----
+# .cpanel.yml ينسخ إلى public_html؛ إن كان النطاق يقرأ من مجلد آخر ننسخ إليه أيضاً
+PUB="$(cd ~ && pwd)/public_html"
+DOCROOT=""
+[ -x "$UAPI" ] && [ -n "$DOMAIN" ] && DOCROOT="$("$UAPI" --output=json DomainInfo single_domain_data domain="$DOMAIN" 2>/dev/null | jget result data documentroot)"
+log "النطاق: ${DOMAIN:-?} · مجلد الموقع: ${DOCROOT:-?}"
+if [ -n "$DOCROOT" ] && [ -d "$DOCROOT" ] && [ "$(cd "$DOCROOT" && pwd -P)" != "$(cd "$PUB" && pwd -P)" ]; then
+  for d in api dashboard app; do mkdir -p "$DOCROOT/$d" && cp -R "$PUB/$d/." "$DOCROOT/$d/"; done
+  # api/index.php يبحث عن ~/signalscope بمستويين للأعلى؛ نثبّت المسار صراحة لأي عمق
+  sed -i "s#getenv('SIGNALSCOPE_APP') ?: ''#getenv('SIGNALSCOPE_APP') ?: '$APP'#" "$DOCROOT/api/index.php"
+  log "نُسخت api و dashboard و app إلى $DOCROOT"
+  PUB="$DOCROOT"
 fi
+
+# ---- PHP 8 لمجلد api فقط، عند الحاجة وبعد التحقق (لا يغيّر إصدار PHP لبقية الموقع) ----
+HT="$PUB/api/.htaccess"
+api_ok() { [ -n "$DOMAIN" ] && command -v curl >/dev/null 2>&1 && curl -s -m 15 "https://$DOMAIN/api/index.php?r=/v1/ping" | grep -q '"ok":true'; }
+drop_handler() { [ -f "$HT" ] && sed -i '/# signalscope-php/,/<\/IfModule>/d' "$HT"; }
+if [ -x "$UAPI" ] && [ -f "$HT" ]; then
+  drop_handler
+  VH="$("$UAPI" --output=json LangPHP php_get_vhost_versions 2>/dev/null | "$PHP" -r '$j=json_decode(stream_get_contents(STDIN),true); foreach(($j["result"]["data"]??[]) as $v){ if(($v["vhost"]??"")===$argv[1]){ echo $v["version"]??""; } }' "$DOMAIN")"
+  INST="$("$UAPI" --output=json LangPHP php_get_installed_versions 2>/dev/null | "$PHP" -r '$j=json_decode(stream_get_contents(STDIN),true); $v=$j["result"]["data"]["versions"]??[]; rsort($v); echo implode(" ",$v);')"
+  log "PHP للموقع: ${VH:-?} · الإصدارات المفعّلة: ${INST:-?}"
+  VN="${VH//[!0-9]/}"
+  if [ -n "$VN" ] && [ "$VN" -lt 81 ]; then
+    EA=""; for v in $INST; do n="${v//[!0-9]/}"; [ -n "$n" ] && [ "$n" -ge 81 ] && { EA="$v"; break; }; done
+    if [ -n "$EA" ]; then
+      printf '\n# signalscope-php: يفرض %s على واجهة API فقط\n<IfModule mime_module>\n  AddHandler application/x-httpd-%s .php\n</IfModule>\n' "$EA" "$EA" >> "$HT"
+      if api_ok; then log "api/ يعمل على $EA"; else drop_handler; log "تعذّر تشغيل api/ على $EA فأُزيل الإعداد. اختر PHP 8.1+ للنطاق من MultiPHP Manager."; fi
+    else
+      log "لا يوجد PHP 8.1+ مفعّل في الاستضافة. فعّله من MultiPHP Manager."
+    fi
+  fi
+fi
+
 # ---- 1) قاعدة البيانات و config.php (مرة واحدة) ----
 # config.php منسوخ من المثال ولم يُعدَّل بعد؟ نحتفظ به جانباً وننشئ واحداً صحيحاً
 if [ -f "$CFG" ] && grep -q "CHANGE_ME\|CPANELUSER" "$CFG"; then
@@ -141,7 +169,7 @@ else
   log "crontab غير متاح: أضف مهام cron يدوياً (README)."
 fi
 if [ -n "$DOMAIN" ] && command -v curl >/dev/null 2>&1; then
-  log "فحص: https://$DOMAIN/api/v1/ping → $(curl -s -m 15 "https://$DOMAIN/api/v1/ping" | head -c 200)"
+  log "فحص: https://$DOMAIN/api/index.php?r=/v1/ping → $(curl -s -m 15 "https://$DOMAIN/api/index.php?r=/v1/ping" | head -c 200)"
 fi
 
 log "انتهى الإعداد"
