@@ -5,7 +5,9 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.ViewGroup
 import android.webkit.*
+import android.widget.FrameLayout
 import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -37,9 +39,13 @@ class MainActivity : AppCompatActivity() {
 
         web = WebView(this)
         web.setBackgroundColor(Color.parseColor("#0A0D12"))
-        setContentView(web)
-        // targetSdk 35 is edge-to-edge: pad the WebView by the system bars / cutout / keyboard
-        ViewCompat.setOnApplyWindowInsetsListener(web) { v, insets ->
+        // WebView ignores its own padding (content still draws under the system bars and is
+        // clipped at the edges), so the insets are applied to a container around it instead.
+        val root = FrameLayout(this).apply { setBackgroundColor(Color.parseColor("#0A0D12")) }
+        root.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        setContentView(root)
+        // targetSdk 35 is edge-to-edge: keep the page clear of the status bar, navigation bar, cutout and keyboard
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val b = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
             v.setPadding(b.left, b.top, b.right, b.bottom)
             WindowInsetsCompat.CONSUMED
@@ -57,6 +63,12 @@ class MainActivity : AppCompatActivity() {
             allowFileAccess = false
             allowContentAccess = false
             textZoom = 100
+            // Honour <meta name="viewport" content="width=device-width"> so the page is laid out at the screen width
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
             mediaPlaybackRequiresUserGesture = true
         }
         web.webViewClient = object : WebViewClient() {

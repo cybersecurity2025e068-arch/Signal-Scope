@@ -87,7 +87,7 @@ base64 -w0 release.jks > release.b64
 ## 4. البناء يدوياً
 - **APK:** افتح `android/` في Android Studio (Ladybug 2024.2+) ← Build APK، أو `cd android && ./gradlew assembleRelease`.
 - **ملف الاستضافة:** `tools/build-hosting.sh --zip` ← `dist/signalscope-hosting.zip`.
-- **نسخة الحاسوب:** `cd web && python3 -m http.server 8080`، أو افتح `https://نطاقك/app/` وثبّتها كتطبيق.
+- **نسخة الحاسوب:** https://cybersecurity2025e068-arch.github.io/Signal-Scope/ (تُنشر تلقائياً من `web/`؛ فعّلها مرة واحدة من Settings ← Pages ← Source: **GitHub Actions**). افتحها في Chrome أو Edge ثم «تثبيت التطبيق» من شريط العنوان لتصبح تطبيقاً على سطح المكتب. تتوفر أيضاً على استضافتك في `https://نطاقك/app/`، أو محلياً: `cd web && python3 -m http.server 8080`.
 
 ## 5. واجهة API
 
