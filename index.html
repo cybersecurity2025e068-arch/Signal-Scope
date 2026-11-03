@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>راصد الإشارة</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#0A0D12">
+<meta name="description" content="فحص الإشارة الخلوية وWi-Fi، تشخيص المشكلات، Speedtest، تسجيل وتحليل">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="shell">
+  <!-- ===== Desktop rail ===== -->
+  <nav class="rail" aria-label="التنقل">
+    <div class="brand">
+      <div class="mk"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linecap="round"><path d="M12 13v8"/><circle cx="12" cy="11" r="1.7" fill="var(--accent)"/><path d="M8.2 7.2a5.4 5.4 0 0 0 0 7.6M15.8 7.2a5.4 5.4 0 0 1 0 7.6" stroke="var(--signal)"/><path d="M5.4 4.4a9.4 9.4 0 0 0 0 13.2M18.6 4.4a9.4 9.4 0 0 1 0 13.2" opacity=".55"/></svg></div>
+      <div><b>راصد الإشارة</b><small>SIGNALSCOPE 1.0</small></div>
+    </div>
+    <div id="railNav"></div>
+    <div class="foot" id="railFoot"></div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 id="pageTitle">الحالة الحية</h1>
+      <div class="tools">
+        <span class="pill" id="srcPill"><span class="d"></span><span id="srcTxt">—</span></span>
+        <select class="sel" id="scenarioSel" style="width:auto;max-width:210px" aria-label="سيناريو تجريبي"></select>
+        <button class="btn rec" id="recBtn" type="button"></button>
+        <button class="btn iconbtn ghost" id="themeBtn" type="button" aria-label="تبديل السمة"></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- ================= LIVE ================= -->
+      <section data-view="live">
+        <div class="stack">
+          <div class="banner" id="liveBanner" hidden></div>
+          <div class="card">
+            <div class="hero">
+              <div class="ring"><canvas id="cvHealth" width="264" height="264"></canvas><div class="v"><div><b id="healthVal">—</b><span>مؤشر الصحة</span></div></div></div>
+              <div style="min-width:0">
+                <h2 id="heroTitle">—</h2>
+                <p id="heroText">—</p>
+                <div class="tags" id="heroTags"></div>
+              </div>
+            </div>
+          </div>
+          <div class="card"><div class="hd">المقاييس الراديوية <small id="gaugeTech"></small></div><div class="gauges" id="gauges"></div></div>
+          <div class="grid g2">
+            <div class="card"><div class="hd">الخلية المخدّمة <small id="cellTech"></small></div><dl class="kv" id="cellKv"></dl></div>
+            <div class="card"><div class="hd">الاتجاه — آخر دقيقتين <small>RSRP · SINR</small></div><canvas class="cv" id="cvTrend" style="height:210px"></canvas><div class="legend" style="margin-top:6px"><span><i style="background:var(--signal)"></i>RSRP (dBm)</span><span><i style="background:var(--accent)"></i>SINR (dB)</span><span><i style="background:var(--q-bad)"></i>تغيّر الخلية</span></div></div>
+          </div>
+          <div class="card"><div class="hd">الخلايا المجاورة <small id="nbCount"></small></div><div class="tblw"><table id="nbTbl"></table></div></div>
+          <div class="grid g2">
+            <div class="card"><div class="hd">Wi-Fi المتصل <small id="wifiQ"></small></div><dl class="kv" id="wifiKv"></dl></div>
+            <div class="card"><div class="hd">الجهاز والشبكة</div><dl class="kv" id="netKv"></dl></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= DIAGNOSE ================= -->
+      <section data-view="diagnose" hidden>
+        <div class="stack">
+          <div class="card">
+            <div class="row sp"><div class="sum" id="diagSum"></div><span class="note" id="diagWhen"></span></div>
+          </div>
+          <div class="findings" id="findings"></div>
+          <div class="grid g2">
+            <div class="card">
+              <div class="hd">فحص يدوي <small>أدخل قيم أي هاتف</small></div>
+              <p class="note" style="margin-bottom:10px">على Android افتح ‎*#*#4636#*#*‎ أو «حول الهاتف ← الحالة». على iPhone اطلب ‎*3001#12345#*‎ (Field Test). انسخ القيم هنا لتحصل على التشخيص نفسه.</p>
+              <div class="formgrid">
+                <label class="f">التقنية<select class="sel" id="mTech"><option value="LTE">4G LTE</option><option value="NR">5G NR</option><option value="WCDMA">3G WCDMA</option><option value="GSM">2G GSM</option></select></label>
+                <label class="f">RSRP / RSCP / RSSI (dBm)<input class="inp num" id="mRsrp" type="number" value="-104"></label>
+                <label class="f">RSRQ / Ec/No (dB)<input class="inp num" id="mRsrq" type="number" value="-12"></label>
+                <label class="f">SINR (dB)<input class="inp num" id="mSinr" type="number" value="4"></label>
+                <label class="f">EARFCN / ARFCN<input class="inp num" id="mArfcn" type="number" value="1650"></label>
+                <label class="f">PCI<input class="inp num" id="mPci" type="number" value="117"></label>
+                <label class="f">جيران ضمن 6 dB<input class="inp num" id="mNb" type="number" value="1" min="0" max="8"></label>
+                <label class="f">TA (اختياري)<input class="inp num" id="mTa" type="number" placeholder="—"></label>
+                <label class="f">تنزيل مقاس Mb/s<input class="inp num" id="mDl" type="number" placeholder="—"></label>
+                <label class="f">رفع مقاس Mb/s<input class="inp num" id="mUl" type="number" placeholder="—"></label>
+                <label class="f">Ping ms<input class="inp num" id="mPing" type="number" placeholder="—"></label>
+                <label class="f">Wi-Fi RSSI (dBm)<input class="inp num" id="mWifi" type="number" placeholder="—"></label>
+              </div>
+              <div class="row" style="margin-top:12px"><button class="btn pri" id="mRun" type="button">شخّص هذه القيم</button><span class="note" id="mOut"></span></div>
+            </div>
+            <div class="card">
+              <div class="hd">مقارنة داخل / خارج المبنى <small>قياس فقد الجدران</small></div>
+              <p class="note">قِف خارج المبنى واضغط «سجّل الخارج»، ثم ادخل واضغط «سجّل الداخل». الفرق هو فقد دخول المبنى الفعلي، ويُطابَق مع جدول المواد لتقدير نوع العائق.</p>
+              <div class="row" style="margin:12px 0"><button class="btn" id="ioOut" type="button">سجّل الخارج</button><button class="btn" id="ioIn" type="button">سجّل الداخل</button><button class="btn ghost sm" id="ioReset" type="button">مسح</button></div>
+              <div class="formgrid"><label class="f">RSRP خارج<input class="inp num" id="ioOutV" type="number" placeholder="dBm"></label><label class="f">RSRP داخل<input class="inp num" id="ioInV" type="number" placeholder="dBm"></label></div>
+              <div class="out" id="ioRes" style="margin-top:10px">—</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SPECTRUM ================= -->
+      <section data-view="spectrum" hidden>
+        <div class="stack">
+          <div class="card"><div class="hd">خريطة النطاقات الخلوية <small>600 – 3800 MHz</small></div><canvas class="cv" id="cvBands" style="height:190px"></canvas>
+            <div class="legend" style="margin-top:8px"><span><i style="background:var(--accent)"></i>الخلية المخدّمة</span><span><i style="background:var(--signal)"></i>الجيران</span><span><i style="background:var(--line2)"></i>نطاقات 3GPP</span></div></div>
+          <div class="card"><div class="hd">بطاقة الحامل الحالي</div><div id="carrierCard"></div></div>
+          <div class="card">
+            <div class="row sp" style="margin-bottom:10px"><div class="hd" style="margin:0">طيف Wi-Fi <small id="scanAge"></small></div>
+              <div class="row"><div class="seg" id="wifiBandSeg"><button type="button" data-v="2.4" aria-pressed="true">2.4 GHz</button><button type="button" data-v="5" aria-pressed="false">5 GHz</button></div><button class="btn sm" id="scanBtn" type="button">مسح الآن</button></div></div>
+            <canvas class="cv" id="cvWifi" style="height:230px"></canvas>
+            <div class="out" id="wifiAdvice" style="margin-top:10px;direction:rtl;text-align:right;font-family:var(--f-body)">—</div>
+            <div class="tblw" style="margin-top:10px;max-height:300px;overflow:auto"><table id="apTbl"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= OBSTACLES ================= -->
+      <section data-view="obstacles" hidden>
+        <div class="stack">
+          <div class="grid g2">
+            <div class="card">
+              <div class="hd">مكدّس العوائق بينك وبين البرج <small>ITU-R P.2040</small></div>
+              <div class="formgrid" style="margin-bottom:10px">
+                <label class="f">التردد (MHz)<input class="inp num" id="obF" type="number" value="1850"></label>
+                <label class="f">RSRP المرجعي خارجاً<input class="inp num" id="obRef" type="number" value="-88"></label>
+                <label class="f">نوع المبنى (P.2109)<select class="sel" id="obType"><option value="traditional">تقليدي</option><option value="thermal">عازل حرارياً (زجاج Low-E)</option></select></label>
+              </div>
+              <div class="stack" id="obList"></div>
+              <div class="row" style="margin-top:10px"><select class="sel" id="obAddSel" style="width:auto"></select><button class="btn sm" id="obAdd" type="button">إضافة عائق</button><button class="btn sm ghost" id="obUseLive" type="button">استخدم تردد الخلية الحالية</button></div>
+            </div>
+            <div class="card">
+              <div class="hd">النتيجة</div>
+              <div class="stack" id="obBars"></div>
+              <div class="tiles" style="margin-top:12px" id="obTiles"></div>
+              <p class="note" style="margin-top:10px" id="obNote"></p>
+            </div>
+          </div>
+          <div class="card"><div class="hd">فقد المكدّس مقابل التردد <small>لماذا تخترق النطاقات المنخفضة أفضل</small></div><canvas class="cv" id="cvObF" style="height:220px"></canvas></div>
+          <div class="card"><div class="row sp"><div><div class="hd" style="margin:0">المختبر ثلاثي الأبعاد</div><p class="note">تتبع أشعة كامل بعشر مواد، مع الانعكاس والحيود والتشتت ودوبلر وسلسلة DSP.</p></div><a class="btn pri" href="lab.html" target="_blank" rel="noopener">افتح المختبر</a></div></div>
+        </div>
+      </section>
+
+      <!-- ================= SPEED ================= -->
+      <section data-view="speed" hidden>
+        <div class="stack">
+          <div class="speedhero">
+            <div class="card">
+              <div class="hd">اختبار السرعة <small id="stServer">speed.cloudflare.com</small></div>
+              <canvas class="cv" id="cvSpeed" style="height:200px;background:none"></canvas>
+              <div class="prog" style="margin:8px 0"><i id="stProg"></i></div>
+              <div class="row sp"><span class="note" id="stStage">جاهز</span><button class="btn pri" id="stBtn" type="button">ابدأ الاختبار</button></div>
+            </div>
+            <div class="card">
+              <div class="hd">النتيجة الأخيرة</div>
+              <div class="big3" id="stBig"></div>
+              <div class="hd" style="margin-top:14px">مقارنة مع قدرة الراديو</div>
+              <div id="stExpect" class="stack"></div>
+            </div>
+          </div>
+          <div class="card"><div class="hd">السجل <small id="stCount"></small></div><div class="tblw"><table id="stTbl"></table></div></div>
+        </div>
+      </section>
+
+      <!-- ================= LOG ================= -->
+      <section data-view="log" hidden>
+        <div class="stack">
+          <div class="card">
+            <div class="row sp">
+              <div class="row"><button class="btn rec" id="logRec" type="button"></button><span class="note" id="logState"></span></div>
+              <div class="row">
+                <label class="btn sm" for="impFile">استيراد CSV</label><input type="file" id="impFile" accept=".csv,text/csv,.txt" hidden>
+                <button class="btn sm" id="expCsv" type="button">تصدير CSV</button>
+                <button class="btn sm" id="expJson" type="button">تصدير JSON</button>
+                <button class="btn sm ghost" id="logClear" type="button">مسح الجلسة</button>
+              </div>
+            </div>
+          </div>
+          <div class="tiles" id="logTiles"></div>
+          <div class="card"><div class="hd">الخط الزمني <small id="logSpan"></small></div><canvas class="cv" id="cvLog" style="height:240px"></canvas>
+            <div class="legend" style="margin-top:6px"><span><i style="background:var(--signal)"></i>RSRP</span><span><i style="background:var(--accent)"></i>SINR</span><span><i style="background:var(--q-bad)"></i>Handover</span></div></div>
+          <div class="grid g2">
+            <div class="card"><div class="hd">توزيع جودة RSRP</div><div class="stack" id="logDist"></div></div>
+            <div class="card"><div class="hd">مسار القياس <small>ملوّن حسب RSRP</small></div><canvas class="cv" id="cvRoute" style="height:240px"></canvas></div>
+          </div>
+          <div class="card"><div class="hd">الجلسات المحفوظة <small id="sessCount"></small></div><div class="tblw"><table id="sessTbl"></table></div></div>
+        </div>
+      </section>
+
+      <!-- ================= TOOLS ================= -->
+      <section data-view="tools" hidden>
+        <div class="grid g2">
+          <div class="card">
+            <div class="hd">محوّل أرقام القنوات <small>3GPP</small></div>
+            <div class="formgrid"><label class="f">النوع<select class="sel" id="tcKind"><option value="lte">LTE EARFCN</option><option value="nr">NR-ARFCN</option><option value="umts">UMTS UARFCN</option><option value="gsm">GSM ARFCN</option><option value="wifi">Wi-Fi MHz → قناة</option></select></label><label class="f">الرقم<input class="inp num" id="tcVal" type="number" value="1650"></label></div>
+            <div class="out" id="tcOut" style="margin-top:10px"></div>
+          </div>
+          <div class="card">
+            <div class="hd">ميزانية الوصلة ونصف قطر الخلية <small>FSPL · COST-231 Hata</small></div>
+            <div class="formgrid">
+              <label class="f">التردد MHz<input class="inp num" id="lbF" type="number" value="1800"></label>
+              <label class="f">قدرة المرسل dBm<input class="inp num" id="lbPt" type="number" value="46"></label>
+              <label class="f">كسب الهوائيات dBi<input class="inp num" id="lbG" type="number" value="17"></label>
+              <label class="f">الحساسية dBm<input class="inp num" id="lbS" type="number" value="-110"></label>
+              <label class="f">هامش الخفوت dB<input class="inp num" id="lbM" type="number" value="8"></label>
+              <label class="f">فقد المبنى dB<input class="inp num" id="lbB" type="number" value="15"></label>
+              <label class="f">ارتفاع البرج m<input class="inp num" id="lbH" type="number" value="30"></label>
+              <label class="f">المسافة km<input class="inp num" id="lbD" type="number" value="1.2" step="0.1"></label>
+            </div>
+            <div class="out" id="lbOut" style="margin-top:10px"></div>
+          </div>
+          <div class="card">
+            <div class="hd">منطقة فرينل الأولى <small>تخطيط وصلات النقطة لنقطة</small></div>
+            <div class="formgrid"><label class="f">التردد MHz<input class="inp num" id="frF" type="number" value="5800"></label><label class="f">طول الوصلة km<input class="inp num" id="frD" type="number" value="3" step="0.1"></label><label class="f">موقع العائق من الطرف km<input class="inp num" id="frX" type="number" value="1.5" step="0.1"></label></div>
+            <div class="out" id="frOut" style="margin-top:10px"></div>
+          </div>
+          <div class="card">
+            <div class="hd">تحويلات وقياسات سريعة</div>
+            <div class="formgrid"><label class="f">dBm<input class="inp num" id="cvDbm" type="number" value="-90"></label><label class="f">TA (LTE)<input class="inp num" id="cvTa" type="number" value="12"></label><label class="f">RSRP للتقدير<input class="inp num" id="cvRs" type="number" value="-95"></label><label class="f">عرض النطاق MHz<select class="sel" id="cvBw"><option>5</option><option>10</option><option>15</option><option selected>20</option></select></label><label class="f">نسبة الحمل %<input class="inp num" id="cvLd" type="number" value="50"></label><label class="f">SINR للسعة dB<input class="inp num" id="cvSn" type="number" value="15"></label></div>
+            <div class="out" id="cvOut" style="margin-top:10px"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= GUIDE ================= -->
+      <section data-view="guide" hidden><div class="stack" id="guideBox"></div></section>
+
+      <!-- ================= PREFS ================= -->
+      <section data-view="prefs" hidden>
+        <div class="grid g2">
+          <div class="card">
+            <div class="hd">مصدر البيانات</div>
+            <div class="seg" id="srcSeg"><button type="button" data-v="android">Android</button><button type="button" data-v="browser">المتصفح</button><button type="button" data-v="demo">تجريبي</button></div>
+            <p class="note" style="margin-top:10px" id="srcNote"></p>
+          </div>
+          <div class="card">
+            <div class="hd">القياس والتنبيه</div>
+            <div class="formgrid">
+              <label class="f">فاصل القراءة (ثانية)<select class="sel" id="pInt"><option value="1000">1</option><option value="2000">2</option><option value="5000">5</option><option value="10000">10</option></select></label>
+              <label class="f">تنبيه عند RSRP أقل من<input class="inp num" id="pAlert" type="number" value="-110"></label>
+              <label class="f">السمة<select class="sel" id="pTheme"><option value="auto">تلقائي</option><option value="dark">داكن</option><option value="light">فاتح</option></select></label>
+            </div>
+            <div class="row" style="margin-top:12px"><button class="btn sm" id="pMonitor" type="button">مراقبة في الخلفية (Android)</button><button class="btn sm ghost" id="pReset" type="button">حذف كل البيانات المحفوظة</button></div>
+          </div>
+          <div class="card span2" id="syncCard">
+            <div class="hd">المزامنة مع الخادم</div>
+            <p class="note" id="syncNote">يرفع التطبيق جلسات التسجيل إلى خادمك عند توفر الإنترنت. التسجيل يعمل دون اتصال، والقراءات تنتظر في طابور على الهاتف حتى تُرفع.</p>
+            <div id="syncSetup" class="formgrid" style="margin-top:10px">
+              <label class="f">عنوان الخادم<input class="inp" id="syServer" type="url" dir="ltr" placeholder="https://example.iq" autocomplete="off"></label>
+              <label class="f">رمز التسجيل<input class="inp" id="syKey" type="password" dir="ltr" autocomplete="off"></label>
+              <label class="f">اسم الجهاز<input class="inp" id="syName" type="text" maxlength="100" placeholder="هاتف القياس 1"></label>
+            </div>
+            <dl class="kv" id="syncKv" hidden></dl>
+            <p class="note" id="syncErr" hidden style="color:var(--bad, #e5484d)"></p>
+            <div class="row" style="margin-top:12px">
+              <button class="btn sm" id="syConnect" type="button">ربط الجهاز بالخادم</button>
+              <button class="btn sm" id="syNow" type="button" hidden>رفع الآن</button>
+              <button class="btn sm ghost" id="syToggle" type="button" hidden>إيقاف المزامنة</button>
+              <button class="btn sm ghost" id="syDisconnect" type="button" hidden>فصل الجهاز</button>
+            </div>
+          </div>
+          <div class="card span2"><div class="hd">حول</div><dl class="kv" id="aboutKv"></dl></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<nav class="tabbar" id="tabbar" aria-label="التنقل"></nav>
+<div class="sheet" id="moreSheet" hidden><div class="panel" id="morePanel"><div class="grab"></div></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

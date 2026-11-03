@@ -1,0 +1,1502 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>مختبر القناة اللاسلكية</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: instrument-bench — control rack | 3D ray-traced stage | DSP analyzer, single dark "lab scope" look */
+:root{
+  --bg:#090C12; --bg2:#0E131C; --panel:#111824; --panel2:#162031; --line:#212B3E; --line2:#2C3953;
+  --fg:#DCE4F0; --muted:#8C98AF; --dim:#5D6A84;
+  --accent:#F2A93B; --signal:#62D2FF; --good:#3DDC97; --warn:#F2C94C; --bad:#FF5F6D; --violet:#B48CFF;
+  --f-body:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+  color-scheme:dark;
+}
+html,body{height:100%;background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:13px;line-height:1.55;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));box-sizing:border-box}
+*,*::before,*::after{box-sizing:border-box}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{height:100%;display:flex;flex-direction:column;padding-block:12px;gap:12px}
+/* header */
+.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.mark{width:38px;height:38px;border-radius:9px;border:1px solid var(--line2);background:var(--panel);display:grid;place-items:center;flex:none}
+.brand h1{margin:0;font-size:18px;font-weight:700;letter-spacing:.2px;text-wrap:balance}
+.brand p{margin:0;color:var(--muted);font-size:12px}
+.status{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--bg2);font-size:11.5px;color:var(--muted)}
+.pill b{color:var(--fg);font-weight:500}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 8px var(--good)}
+/* work grid */
+.work{flex:1;min-height:0;display:grid;grid-template-columns:300px minmax(0,1fr) 440px;gap:12px}
+.ctl,.ana{min-height:0;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:var(--r)}
+.ctl{padding:4px 14px 14px}
+.stage{position:relative;min-width:0;min-height:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:#06090E}
+.stage canvas.gl{display:block;width:100%;height:100%;touch-action:none}
+@media (max-width:1180px){
+  html,body{height:auto}
+  .app{height:auto}
+  .work{grid-template-columns:minmax(0,1fr)}
+  .stage{height:62vh;min-height:380px;order:-1}
+  .ctl,.ana{overflow:visible}
+}
+/* control groups */
+.grp{padding-block:12px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
+.grp:last-child{border-bottom:0}
+.grp h3{margin:0;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px;color:var(--fg)}
+.tag{font-family:var(--f-mono);font-size:10px;letter-spacing:.6px;color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 40%,transparent);padding:0 6px;border-radius:4px}
+.field{display:flex;justify-content:space-between;align-items:baseline;gap:8px;color:var(--muted);font-size:12px}
+.field output{font-family:var(--f-mono);color:var(--fg);font-size:12px}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.num{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.num input,.num select,select.sel{background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-family:var(--f-mono);font-size:12px;width:100%;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{border:1px solid var(--line);background:var(--bg2);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;font-family:var(--f-mono);color:var(--muted)}
+.chip:hover{border-color:var(--line2);color:var(--fg)}
+.chip.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--bg2))}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{flex:1;background:var(--bg2);border:0;padding:5px 4px;font-size:11.5px;cursor:pointer;color:var(--muted)}
+.seg button+button{border-inline-start:1px solid var(--line)}
+.seg button.on{background:color-mix(in srgb,var(--accent) 16%,var(--bg2));color:var(--accent);font-weight:600}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);cursor:pointer}
+.tog input{accent-color:var(--accent);width:15px;height:15px}
+.btn{border:1px solid var(--line2);background:var(--panel2);border-radius:7px;padding:6px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.prim{border-color:var(--accent);color:var(--accent)}
+.btn.prim.on{background:var(--accent);color:#1a1205;font-weight:600}
+.obs-list{display:flex;flex-direction:column;gap:3px}
+.orow{display:grid;grid-template-columns:12px 1fr auto;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;border:1px solid transparent;cursor:pointer}
+.orow:hover{background:var(--bg2)}
+.orow.sel{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--bg2))}
+.sw{width:12px;height:12px;border-radius:3px}
+.orow .nm{font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.orow .nm small{color:var(--dim);font-family:var(--f-mono);font-size:10px;margin-inline-start:4px}
+.orow input{accent-color:var(--accent)}
+.editor{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:11.5px;color:var(--muted)}
+.kv b{font-family:var(--f-mono);font-weight:500;color:var(--fg);text-align:left;direction:ltr}
+/* stage overlays */
+.hud{position:absolute;inset-inline-start:12px;top:12px;background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid var(--line);border-radius:9px;padding:9px 12px;backdrop-filter:blur(6px);display:grid;grid-template-columns:auto auto;gap:3px 14px;font-size:11.5px;color:var(--muted);pointer-events:none;max-width:calc(100% - 24px)}
+.hud b{font-family:var(--f-mono);font-weight:500;color:var(--fg);direction:ltr;text-align:left}
+.hud .big{font-size:15px}
+.toolbar{position:absolute;inset-inline-end:12px;top:12px;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:52%}
+.toolbar .chip{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(6px);font-family:var(--f-body);padding:4px 9px}
+.legend{position:absolute;inset-inline-start:12px;bottom:12px;display:flex;flex-wrap:wrap;gap:4px 12px;max-width:62%;font-size:11px;color:var(--muted);background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid var(--line);border-radius:8px;padding:6px 10px;pointer-events:none}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+.heatlg{position:absolute;inset-inline-end:12px;bottom:12px;background:color-mix(in srgb,var(--bg) 82%,transparent);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:10.5px;color:var(--muted);display:flex;flex-direction:column;gap:4px;min-width:180px}
+.heatlg .bar{height:8px;border-radius:3px;background:linear-gradient(90deg,#0d0829,#42106d,#932567,#dd513a,#fca50a,#fcffa4)}
+.heatlg .ends{display:flex;justify-content:space-between;font-family:var(--f-mono);direction:ltr}
+.hint{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;font-size:11px;color:var(--dim);pointer-events:none;white-space:nowrap}
+@media (max-width:700px){.hint{display:none}.legend{max-width:calc(100% - 24px)}.heatlg{bottom:auto;top:auto;display:none}.toolbar{max-width:100%;top:auto;bottom:56px;inset-inline-end:12px}.hud{grid-template-columns:auto auto;font-size:10.5px}}
+/* analysis */
+.tabs{position:sticky;top:0;z-index:2;display:flex;gap:2px;overflow-x:auto;background:var(--panel);border-bottom:1px solid var(--line);padding:6px 8px 0}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:7px 9px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.pane{padding:14px;display:flex;flex-direction:column;gap:12px}
+.pane h4{margin:0;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.pane h4 small{color:var(--dim);font-weight:400;font-family:var(--f-mono);font-size:10.5px}
+.note{font-size:11.5px;color:var(--muted);margin:0;max-width:65ch}
+.cv{width:100%;display:block;background:var(--bg2);border:1px solid var(--line);border-radius:8px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile span{font-size:10.5px;color:var(--muted)}
+.tile b{font-family:var(--f-mono);font-weight:500;font-size:15px;direction:ltr;text-align:right}
+.tile b small{font-size:10.5px;color:var(--dim);margin-inline-start:3px}
+.math{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--f-mono);font-size:11.5px;direction:ltr;text-align:left;display:flex;flex-direction:column;gap:3px;overflow-x:auto}
+.math .c{color:var(--dim)}
+.math .h{color:var(--accent)}
+.math .s{color:var(--signal)}
+.tblw{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th,td{padding:5px 7px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{color:var(--muted);font-weight:500;background:var(--bg2);position:sticky;top:0}
+td.n{font-family:var(--f-mono);direction:ltr;text-align:left}
+tr.hl td{background:color-mix(in srgb,var(--accent) 9%,transparent)}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--bg2)}
+.tdot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-inline-end:5px;vertical-align:middle}
+.ctlrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ctlrow .seg{flex:1;min-width:160px}
+.dx{display:flex;flex-direction:column;gap:8px}
+.card{background:var(--bg2);border:1px solid var(--line);border-inline-start:3px solid var(--dim);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.card.act{border-inline-start-color:var(--bad)}
+.card.ok{border-inline-start-color:var(--good)}
+.card .hd{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:600;font-size:12.5px}
+.badge{font-size:10.5px;padding:1px 8px;border-radius:999px;border:1px solid var(--line2);color:var(--muted);font-weight:500;white-space:nowrap}
+.card.act .badge{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.card.ok .badge{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent)}
+.card p{margin:0;font-size:11.5px;color:var(--muted)}
+.card .ev{font-family:var(--f-mono);font-size:11px;color:var(--fg);direction:ltr;text-align:left}
+.split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+@media (max-width:460px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:minmax(0,1fr)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A93B" stroke-width="1.6" stroke-linecap="round"><path d="M12 13v8"/><circle cx="12" cy="11" r="1.6" fill="#F2A93B"/><path d="M8.2 7.2a5.4 5.4 0 0 0 0 7.6M15.8 7.2a5.4 5.4 0 0 1 0 7.6" stroke="#62D2FF"/><path d="M5.4 4.4a9.4 9.4 0 0 0 0 13.2M18.6 4.4a9.4 9.4 0 0 1 0 13.2" opacity=".55"/></svg>
+      </div>
+      <div>
+        <h1>مختبر القناة اللاسلكية <span class="mono" style="font-size:12px;color:var(--muted);font-weight:400">3D Ray-Traced PHY</span></h1>
+        <p>تتبع أشعة ثلاثي الأبعاد · عشر مواد وفق ITU-R P.2040 · سلسلة معالجة DSP كاملة — CYSE505 · المحاضرة 05</p>
+      </div>
+    </div>
+    <div class="status">
+      <span class="pill"><span class="dot"></span>محرك التتبع <b id="stPaths" class="mono">–</b> مسار</span>
+      <span class="pill">زمن الحساب <b id="stMs" class="mono">–</b></span>
+      <span class="pill">λ <b id="stLam" class="mono">–</b></span>
+    </div>
+  </header>
+
+  <div class="work">
+    <!-- ============ CONTROL RACK ============ -->
+    <aside class="ctl" aria-label="لوحة التحكم">
+      <div class="grp">
+        <h3><span class="tag">SCN</span>السيناريو</h3>
+        <div class="seg" id="presetSeg">
+          <button data-p="campus" class="on">حرم جامعي مفتوح</button>
+          <button data-p="canyon">شارع بين مبانٍ</button>
+        </div>
+        <p class="note" style="font-size:11px">اسحب المرسل <b style="color:var(--signal)">Tx</b> أو المستقبل <b style="color:var(--good)">Rx</b> أو أي عائق داخل المشهد. انقر عائقاً لتحديده.</p>
+      </div>
+
+      <div class="grp">
+        <h3><span class="tag">RF</span>الطبقة الراديوية</h3>
+        <div class="field"><label for="fr">التردد الحامل f</label><output id="frO">2.40 GHz</output></div>
+        <input type="range" id="fr" min="0" max="1000" value="403">
+        <div class="chips" id="bands">
+          <button class="chip" data-f="0.9">900M GSM</button>
+          <button class="chip on" data-f="2.4">2.4G Wi-Fi</button>
+          <button class="chip" data-f="3.5">3.5G n78</button>
+          <button class="chip" data-f="5.8">5.8G Wi-Fi</button>
+          <button class="chip" data-f="28">28G mmWave</button>
+        </div>
+        <div class="grid2">
+          <label class="num">قدرة الإرسال P<sub>t</sub> (dBm)<input type="number" id="pt" value="20" step="1"></label>
+          <label class="num">عرض النطاق B<select id="bw"><option value="5">5 MHz</option><option value="20" selected>20 MHz</option><option value="40">40 MHz</option><option value="80">80 MHz</option></select></label>
+          <label class="num">كسب المرسل G<sub>t</sub> (dBi)<input type="number" id="gt" value="3" step="1"></label>
+          <label class="num">كسب المستقبل G<sub>r</sub> (dBi)<input type="number" id="gr" value="0" step="1"></label>
+          <label class="num">رقم الضوضاء NF (dB)<input type="number" id="nf" value="7" step="1"></label>
+          <label class="num">الحساسية P<sub>sens</sub> (dBm)<input type="number" id="sens" value="-82" step="1"></label>
+        </div>
+        <div class="field"><span>الاستقطاب نسبةً لمستوى السقوط</span></div>
+        <div class="seg" id="polSeg"><button data-v="TE" class="on">TE ⟂ (أفقي)</button><button data-v="TM">TM ∥ (عمودي)</button></div>
+        <label class="num">نوع الأرض (P.2040)<select id="ground" class="sel">
+          <option value="vdry">أرض جافة جداً · Very dry</option>
+          <option value="mdry" selected>أرض متوسطة الجفاف · Medium dry</option>
+          <option value="wet">أرض رطبة · Wet ground</option>
+          <option value="conc">أرضية خرسانية · Concrete</option>
+        </select></label>
+      </div>
+
+      <div class="grp">
+        <h3><span class="tag">RT</span>محرك تتبع الأشعة</h3>
+        <div class="field"><span>أقصى رتبة انعكاس</span></div>
+        <div class="seg" id="ordSeg"><button data-v="0">0 · LOS</button><button data-v="1">1</button><button data-v="2" class="on">2</button></div>
+        <label class="tog">حيود حافة السكين (ITU-R P.526)<input type="checkbox" id="diff" checked></label>
+        <label class="tog">تشتت منتشر (أشجار/أجسام)<input type="checkbox" id="scat" checked></label>
+      </div>
+
+      <div class="grp">
+        <h3><span class="tag">INT</span>مصدر التداخل</h3>
+        <label class="tog">تشغيل برج متداخل<input type="checkbox" id="intOn" checked></label>
+        <div class="grid2">
+          <label class="num">قدرته (dBm)<input type="number" id="ipt" value="20" step="1"></label>
+          <label class="num">علاقة القناة<select id="ich"><option value="co">نفس القناة (0 dB)</option><option value="adj" selected>متجاورة (ACIR 20 dB)</option><option value="orth">متعامدة (∞)</option></select></label>
+        </div>
+      </div>
+
+      <div class="grp">
+        <h3><span class="tag">MOB</span>الحركة ودوبلر</h3>
+        <div class="field"><label for="vel">سرعة المستقبل v</label><output id="velO">1.5 m/s</output></div>
+        <input type="range" id="vel" min="0" max="35" step="0.5" value="1.5">
+        <div class="field"><label for="hdg">اتجاه الحركة</label><output id="hdgO">20°</output></div>
+        <input type="range" id="hdg" min="0" max="359" step="1" value="20">
+        <button class="btn prim" id="moveBtn" type="button">▶ تشغيل حركة المستقبل</button>
+      </div>
+
+      <div class="grp">
+        <h3><span class="tag">OBS</span>العوائق العشرة</h3>
+        <div class="obs-list" id="obsList"></div>
+        <div class="editor" id="editor"></div>
+      </div>
+    </aside>
+
+    <!-- ============ 3D STAGE ============ -->
+    <section class="stage" id="stage" aria-label="المشهد ثلاثي الأبعاد">
+      <div class="hud" id="hud"></div>
+      <div class="toolbar">
+        <button class="chip on" id="tRays" type="button">الأشعة</button>
+        <button class="chip on" id="tPart" type="button">تدفق الإشارة</button>
+        <button class="chip on" id="tLab" type="button">التسميات</button>
+        <button class="chip" id="tHeat" type="button">خريطة: إيقاف</button>
+        <button class="chip" id="tCam" type="button">منظور علوي</button>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="heatlg" id="heatLg" hidden>
+        <span id="heatTitle">القدرة المستقبَلة المتوسطة (dBm)</span>
+        <div class="bar"></div>
+        <div class="ends"><span id="heatLo">-100</span><span id="heatHi">-30</span></div>
+      </div>
+      <div class="hint">سرعة تدفق الجسيمات مبطّأة للعرض · العجلة للتكبير · السحب للتدوير</div>
+    </section>
+
+    <!-- ============ ANALYZER ============ -->
+    <aside class="ana" aria-label="المحلل">
+      <nav class="tabs" id="tabs">
+        <button data-t="budget" class="on">ميزانية الوصلة</button>
+        <button data-t="sinr">SINR والسعة</button>
+        <button data-t="mp">تعدد المسارات</button>
+        <button data-t="fade">الخفوت ودوبلر</button>
+        <button data-t="dsp">DSP</button>
+        <button data-t="mat">المواد</button>
+        <button data-t="mit">التشخيص</button>
+      </nav>
+
+      <section class="pane" data-p="budget">
+        <h4>شلال ميزانية أقوى مسار <small>dBm</small></h4>
+        <canvas class="cv" id="cvBudget" style="height:250px"></canvas>
+        <div class="tiles" id="budTiles"></div>
+        <div class="math" id="budMath"></div>
+        <p class="note">نموذج الفضاء الحر (Slides 09–11) يتنبأ بقيمة واحدة. المتتبع يجمع كل المسارات كقيم مركبة، ويضيف خسائر الاختراق والانعكاس والحيود. الفرق بين القيمتين هو ما تقصده الادعاء الثالث في Slide 22.</p>
+      </section>
+
+      <section class="pane" data-p="sinr" hidden>
+        <div class="tiles" id="sinrTiles"></div>
+        <h4>مقارنة S و I و N <small>dBm</small></h4>
+        <canvas class="cv" id="cvSinr" style="height:150px"></canvas>
+        <div class="math" id="sinrMath"></div>
+        <h4>جدول MCS ‏(802.11ac، 20 MHz، تيار واحد) <small>تقريبي</small></h4>
+        <div class="tblw"><table id="mcsTbl"></table></div>
+      </section>
+
+      <section class="pane" data-p="mp" hidden>
+        <h4>مخطط تأخير القدرة PDP <small>τ (ns)</small></h4>
+        <canvas class="cv" id="cvPdp" style="height:190px"></canvas>
+        <h4>استجابة القناة الترددية |H(f)| <small>Δf (MHz)</small></h4>
+        <canvas class="cv" id="cvHf" style="height:170px"></canvas>
+        <div class="tiles" id="mpTiles"></div>
+        <h4>المسارات المتتبَّعة <small id="mpCount"></small></h4>
+        <div class="tblw" style="max-height:260px;overflow:auto"><table id="pathTbl"></table></div>
+      </section>
+
+      <section class="pane" data-p="fade" hidden>
+        <h4>تتبع الخفوت الزمني وتنوع الهوائيات <small>dBm · t (ms)</small></h4>
+        <canvas class="cv" id="cvTrace" style="height:200px"></canvas>
+        <div class="tiles" id="fadeTiles"></div>
+        <h4>طيف دوبلر للمسارات <small>f<sub>D</sub> (Hz)</small></h4>
+        <canvas class="cv" id="cvDop" style="height:170px"></canvas>
+        <div class="math" id="dopMath"></div>
+      </section>
+
+      <section class="pane" data-p="dsp" hidden>
+        <div class="ctlrow">
+          <div class="seg" id="modSeg"><button data-v="BPSK">BPSK</button><button data-v="QPSK" class="on">QPSK</button><button data-v="16QAM">16QAM</button><button data-v="64QAM">64QAM</button></div>
+        </div>
+        <div class="ctlrow">
+          <label class="num" style="flex:1">معدل الرموز R<sub>s</sub><select id="rs"><option value="0.5">0.5 Msym/s</option><option value="2">2 Msym/s</option><option value="5">5 Msym/s</option><option value="10" selected>10 Msym/s</option><option value="20">20 Msym/s</option><option value="50">50 Msym/s</option></select></label>
+          <div style="flex:1.4;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)">المعادِل (Equalizer)
+            <div class="seg" id="eqSeg"><button data-v="none">نقرة واحدة</button><button data-v="mmse" class="on">MMSE FIR</button></div>
+          </div>
+        </div>
+        <div class="split">
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+            <h4>المخطط النجمي بعد المعادل</h4>
+            <canvas class="cv" id="cvConst" style="height:240px"></canvas>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
+            <h4>نقرات القناة المتقطعة |h[k]|</h4>
+            <canvas class="cv" id="cvTaps" style="height:240px"></canvas>
+          </div>
+        </div>
+        <div class="tiles" id="dspTiles"></div>
+        <h4>منحنى BER مقابل SINR <small>نظري AWGN + نقاط مقاسة</small></h4>
+        <canvas class="cv" id="cvBer" style="height:200px"></canvas>
+        <p class="note">السلسلة: بتات عشوائية ← ترميز تلافيفي (7,5)<sub>8</sub> بمعدل 1/2 ← تعيين Gray ← نبضة رفع جيبي β=0.35 ← القناة المتقطعة المشتقة من المسارات المتتبعة ← ضوضاء وتداخل غاوسي بقيمة SINR الحالية ← معادل ← قرار صلب ← فك Viterbi.</p>
+      </section>
+
+      <section class="pane" data-p="mat" hidden>
+        <h4>معاملات المواد عند التردد الحالي <small id="matF"></small></h4>
+        <div class="tblw"><table id="matTbl"></table></div>
+        <h4>معامل انعكاس فرينل |Γ| مقابل زاوية السقوط <small id="fresTitle"></small></h4>
+        <canvas class="cv" id="cvFres" style="height:200px"></canvas>
+        <div class="math" id="matMath"></div>
+      </section>
+
+      <section class="pane" data-p="mit" hidden>
+        <p class="note">التشخيص يقرأ مقاييس القناة الحالية ويطابقها مع جدول المعالجات في Slide 19. الحالة تتغير مباشرة عند تحريك المستقبل أو العوائق.</p>
+        <div class="dx" id="mitCards"></div>
+        <h4>فحص ادعاءات Slide 22</h4>
+        <div class="dx" id="claims"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+   0. CONSTANTS, COLORS, HELPERS
+   ===================================================================== */
+const C0 = 299792458;
+const COL = {bg2:'#0E131C', line:'#212B3E', line2:'#2C3953', fg:'#DCE4F0', muted:'#8C98AF', dim:'#5D6A84',
+  accent:'#F2A93B', signal:'#62D2FF', good:'#3DDC97', warn:'#F2C94C', bad:'#FF5F6D', violet:'#B48CFF'};
+const TYPES = {
+  los:{c:'#62D2FF', ar:'خط نظر LOS'},
+  pen:{c:'#4F86FF', ar:'LOS مخترِق'},
+  gr: {c:'#D9C27A', ar:'انعكاس أرضي'},
+  r1: {c:'#F2A93B', ar:'انعكاس أحادي'},
+  r2: {c:'#FF7A45', ar:'انعكاس ثنائي'},
+  df: {c:'#B48CFF', ar:'حيود'},
+  sc: {c:'#3DDC97', ar:'تشتت'},
+  int:{c:'#FF5F6D', ar:'تداخل'}
+};
+const BOUNDS = {x:34, z:22};
+const log10 = Math.log10, db2lin = d => Math.pow(10, d/10), lin2db = l => 10*log10(Math.max(l,1e-30));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const fmt = (v,d=1) => (isFinite(v) ? v.toFixed(d) : '—');
+const fsign = (v,d=1) => (v>=0?'+':'')+fmt(v,d);
+const $ = id => document.getElementById(id);
+
+/* complex arithmetic */
+const cmul=(a,b)=>({re:a.re*b.re-a.im*b.im, im:a.re*b.im+a.im*b.re});
+const cdiv=(a,b)=>{const d=b.re*b.re+b.im*b.im; return {re:(a.re*b.re+a.im*b.im)/d, im:(a.im*b.re-a.re*b.im)/d};};
+const cabs=a=>Math.hypot(a.re,a.im);
+const csqrt=a=>{const r=Math.hypot(a.re,a.im); const re=Math.sqrt(Math.max(0,(r+a.re)/2)); let im=Math.sqrt(Math.max(0,(r-a.re)/2)); if(a.im<0) im=-im; return {re,im};};
+
+/* vectors as {x,y,z} */
+const vsub=(a,b)=>({x:a.x-b.x,y:a.y-b.y,z:a.z-b.z});
+const vdist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
+const vlerp=(a,b,t)=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,z:a.z+(b.z-a.z)*t});
+
+/* =====================================================================
+   1. MATERIAL LIBRARY — ITU-R P.2040-1 Table 3:  ε' = a·f^b,  σ = c·f^d  (f in GHz)
+      η = ε' − j·17.98·σ/f
+   ===================================================================== */
+const MAT = {
+  concrete:{ar:'خرسانة',      en:'Concrete',     a:5.24,b:0,c:0.0462,d:0.7822, rough:0.004, col:0x8b9098},
+  brick:   {ar:'طابوق',       en:'Brick',        a:3.91,b:0,c:0.0238,d:0.16,   rough:0.006, col:0xa65a3f},
+  plaster: {ar:'جبس بورد',    en:'Plasterboard', a:2.73,b:0,c:0.0085,d:0.9395, rough:0.001, col:0xd9d4c7},
+  wood:    {ar:'خشب',         en:'Wood',         a:1.99,b:0,c:0.0047,d:1.0718, rough:0.002, col:0x8a5a2b},
+  glass:   {ar:'زجاج',        en:'Glass',        a:6.31,b:0,c:0.0036,d:1.3394, rough:0,     col:0x7fd6ff},
+  metal:   {ar:'معدن',        en:'Metal',        a:1,   b:0,c:1e7,   d:0,      rough:0.0005,col:0x9aa7b8},
+  chip:    {ar:'خشب مضغوط',   en:'Chipboard',    a:2.58,b:0,c:0.0217,d:0.78,   rough:0.002, col:0xc49a5a},
+  floor:   {ar:'ألواح أرضية', en:'Floorboard',   a:3.66,b:0,c:0.0044,d:1.3515, rough:0.002, col:0x6e4a2c},
+  foliage: {ar:'أشجار',       en:'Foliage',      kind:'veg',  rough:0.15, col:0x2f8f4e},
+  human:   {ar:'جسم بشري',    en:'Human body',   kind:'body', rough:0.01, col:0xe0a37a}
+};
+const MAT_ORDER = ['concrete','brick','plaster','wood','glass','metal','chip','floor','foliage','human'];
+const GROUND = {
+  vdry:{ar:'أرض جافة جداً', a:3, b:0, c:0.00015,d:2.52, rough:0.01},
+  mdry:{ar:'أرض متوسطة',    a:15,b:-0.1,c:0.035,d:1.63, rough:0.012},
+  wet: {ar:'أرض رطبة',      a:30,b:-0.4,c:0.15, d:1.30, rough:0.012},
+  conc:{ar:'أرضية خرسانية', a:5.24,b:0,c:0.0462,d:0.7822,rough:0.003}
+};
+
+function matEM(m, fG){
+  let er, sig;
+  if(m.kind==='body'){ er = 56*Math.pow(fG,-0.08); sig = 0.9*fG; }       // muscle-like tissue fit (Gabriel data)
+  else if(m.kind==='veg'){ er = 1.6; sig = 0.012*fG; }                     // effective porous canopy (assumed)
+  else { er = m.a*Math.pow(fG,m.b); sig = m.c*Math.pow(fG,m.d); }
+  return {er, sig, eta:{re:er, im:-17.98*sig/fG}};
+}
+function fresnel(eta, cosI, pol){
+  cosI = clamp(cosI, 1e-6, 1);
+  const s2 = 1 - cosI*cosI;
+  const root = csqrt({re:eta.re - s2, im:eta.im});
+  if(pol==='TE') return cdiv({re:cosI-root.re, im:-root.im}, {re:cosI+root.re, im:root.im});
+  const ec = {re:eta.re*cosI, im:eta.im*cosI};
+  return cdiv({re:ec.re-root.re, im:ec.im-root.im}, {re:ec.re+root.re, im:ec.im+root.im});
+}
+const roughness = (h, cosI, lam) => Math.exp(-8*Math.pow(Math.PI*h*cosI/lam, 2));   // Rayleigh/Ament factor
+function alphaDbPerM(eta, lam){ return 8.686*(2*Math.PI/lam)*Math.abs(csqrt(eta).im); }
+function ifaceLoss(eta){ const g = cabs(fresnel(eta,1,'TE')); return -10*log10(Math.max(1e-30, Math.pow(1-g*g,2))); }
+
+/* =====================================================================
+   2. SCENE STATE + PRESETS
+   ===================================================================== */
+const PRESETS = {
+  campus:{
+    tx:{x:-22,y:3,z:2}, rx:{x:18,y:1.5,z:3}, it:{x:26,y:4,z:-16},
+    obs:[
+      {mat:'concrete', name:'واجهة مبنى',   c:{x:-4,z:-10},  s:{x:18,y:8,z:0.3},  mode:'slab',   t:0.30},
+      {mat:'brick',    name:'سور طابوق',    c:{x:6,z:10},    s:{x:14,y:3.2,z:0.25},mode:'slab',  t:0.25},
+      {mat:'plaster',  name:'قاطع جبسي',    c:{x:2,z:1},     s:{x:0.12,y:3,z:7},  mode:'slab',   t:0.026},
+      {mat:'wood',     name:'باب خشبي',     c:{x:11,z:2.6},  s:{x:0.1,y:2.1,z:1.4},mode:'slab',   t:0.045},
+      {mat:'glass',    name:'واجهة زجاجية', c:{x:16,z:-7},   s:{x:0.1,y:6,z:10},  mode:'slab',   t:0.012},
+      {mat:'metal',    name:'حاوية معدنية', c:{x:-8,z:7},    s:{x:6.1,y:2.6,z:2.4},mode:'hollow',t:0.003},
+      {mat:'chip',     name:'كشك',          c:{x:-14,z:-3},  s:{x:3,y:3,z:3},     mode:'hollow', t:0.018},
+      {mat:'floor',    name:'منصة خشبية',   c:{x:22,z:9},    s:{x:6,y:1,z:4},     mode:'hollow', t:0.03},
+      {mat:'foliage',  name:'أشجار كثيفة',  c:{x:6,z:-5},    s:{x:4,y:6,z:4},     mode:'veg'},
+      {mat:'human',    name:'شخص',          c:{x:9,z:4.4},   s:{x:0.5,y:1.8,z:0.35},mode:'body'}
+    ]},
+  canyon:{
+    tx:{x:-28,y:4,z:0}, rx:{x:24,y:1.5,z:1}, it:{x:10,y:6,z:14},
+    obs:[
+      {mat:'concrete', name:'مبنى خرساني',  c:{x:0,z:-6.5},  s:{x:56,y:10,z:0.3}, mode:'slab',   t:0.30},
+      {mat:'brick',    name:'مبنى طابوق',   c:{x:-16,z:6.5}, s:{x:20,y:6,z:0.25}, mode:'slab',   t:0.25},
+      {mat:'plaster',  name:'لوحة إعلان',   c:{x:-22,z:-3},  s:{x:0.12,y:3,z:4},  mode:'slab',   t:0.026},
+      {mat:'wood',     name:'بوابة خشبية',  c:{x:20,z:-3},   s:{x:2.4,y:2.1,z:0.1},mode:'slab',   t:0.045},
+      {mat:'glass',    name:'برج زجاجي',    c:{x:8,z:6.5},   s:{x:30,y:8,z:0.1},  mode:'slab',   t:0.012},
+      {mat:'metal',    name:'حافلة',        c:{x:4,z:-2},    s:{x:10,y:3,z:2.5},  mode:'hollow', t:0.003},
+      {mat:'chip',     name:'كشك',          c:{x:28,z:4},    s:{x:3,y:3,z:3},     mode:'hollow', t:0.018},
+      {mat:'floor',    name:'منصة',         c:{x:-12,z:-3.5},s:{x:4,y:1,z:3},     mode:'hollow', t:0.03},
+      {mat:'foliage',  name:'شجرة',         c:{x:-6,z:2.5},  s:{x:3,y:6,z:3},     mode:'veg'},
+      {mat:'human',    name:'شخص',          c:{x:16,z:0.6},  s:{x:0.5,y:1.8,z:0.35},mode:'body'}
+    ]}
+};
+
+const S = {
+  f:2.4e9, pt:20, gt:3, gr:0, bw:20e6, nf:7, sens:-82, pol:'TE', ground:'mdry',
+  order:2, diff:true, scat:true, intOn:true, ipt:20, ich:'adj',
+  v:1.5, hdg:20, moving:false,
+  mod:'QPSK', rs:10e6, eq:'mmse',
+  tx:null, rx:null, it:null, obs:[], sel:0,
+  showRays:true, showPart:true, showLab:true, heat:'off', topCam:false,
+  cur:null, curI:null, M:null
+};
+
+function loadPreset(name){
+  const p = PRESETS[name];
+  S.tx = {...p.tx}; S.rx = {...p.rx}; S.it = {...p.it};
+  S.obs = p.obs.map((o,i)=>({idx:i, mat:o.mat, name:o.name, mode:o.mode, t:o.t||0,
+    c:{x:o.c.x, y:o.s.y/2, z:o.c.z}, s:{...o.s}, on:true}));
+  S.sel = 0; traceBuf.length = 0;
+}
+function obsBox(o){ return {min:{x:o.c.x-o.s.x/2, y:0, z:o.c.z-o.s.z/2}, max:{x:o.c.x+o.s.x/2, y:o.s.y, z:o.c.z+o.s.z/2}}; }
+
+/* =====================================================================
+   3. RAY TRACER — image method (order 0..2), knife-edge diffraction,
+      bistatic diffuse scattering, slab penetration
+   ===================================================================== */
+function buildCtx(){
+  const f = S.f, fG = f/1e9, lam = C0/f;
+  const em = {}; MAT_ORDER.forEach(k=>{ const e = matEM(MAT[k], fG); e.alpha = alphaDbPerM(e.eta, lam); e.iface = ifaceLoss(e.eta); em[k]=e; });
+  const gE = matEM(GROUND[S.ground], fG);
+  const boxes = [], faces = [];
+  S.obs.forEach(o=>{
+    if(!o.on) return;
+    const b = obsBox(o); b.o = o; boxes.push(b);
+    const {min,max} = b;
+    const mk = (axis,val,sign) => faces.push({axis,val,sign,min,max,mat:o.mat,box:o.idx});
+    mk('x',max.x,1); mk('x',min.x,-1); mk('z',max.z,1); mk('z',min.z,-1); mk('y',max.y,1);
+  });
+  faces.push({axis:'y',val:0,sign:1,min:{x:-200,y:0,z:-200},max:{x:200,y:0,z:200},ground:true,box:-1});
+  return {f, fG, lam, k:2*Math.PI/lam, em, gE, boxes, faces, pol:S.pol};
+}
+function slab(a,b,mn,mx){
+  let t0=0, t1=1;
+  for(const ax of ['x','y','z']){
+    const d = b[ax]-a[ax];
+    if(Math.abs(d)<1e-12){ if(a[ax]<mn[ax]||a[ax]>mx[ax]) return null; }
+    else{ let ta=(mn[ax]-a[ax])/d, tb=(mx[ax]-a[ax])/d; if(ta>tb){const t=ta;ta=tb;tb=t;} if(ta>t0)t0=ta; if(tb<t1)t1=tb; if(t0>=t1) return null; }
+  }
+  return [t0,t1];
+}
+function penLoss(b, inside, cx){
+  const o = b.o, m = MAT[o.mat];
+  if(m.kind==='veg'){ const d=inside; return d<14 ? 0.45*Math.pow(cx.fG,0.284)*d : 1.33*Math.pow(cx.fG,0.284)*Math.pow(d,0.588); } // Weissberger
+  if(m.kind==='body') return 4*Math.sqrt(cx.fG);                                                                                  // empirical body shadowing
+  const e = cx.em[o.mat];
+  if(o.mode==='slab'){ const thin = Math.min(o.s.x, o.s.z); return e.iface + e.alpha*o.t*(inside/thin); }
+  return 2*(e.iface + e.alpha*o.t);   // hollow: two wall crossings
+}
+function segLoss(a,b,cx,excl){
+  let loss=0; const hits=[]; const L=vdist(a,b);
+  for(const bx of cx.boxes){
+    if(bx.o.idx===excl) continue;
+    const s = slab(a,b,bx.min,bx.max);
+    if(!s) continue;
+    const inside = (s[1]-s[0])*L;
+    if(inside>0.02){ loss += penLoss(bx,inside,cx); hits.push(bx.o.idx); }
+  }
+  return {loss:Math.min(loss,400), hits};
+}
+const outward = (p,f) => f.sign*(p[f.axis]-f.val) > 1e-6;
+function mirror(p,f){ const q={x:p.x,y:p.y,z:p.z}; q[f.axis]=2*f.val-p[f.axis]; return q; }
+function hitPlane(a,b,f){
+  const d=b[f.axis]-a[f.axis]; if(Math.abs(d)<1e-12) return null;
+  const t=(f.val-a[f.axis])/d; if(t<=1e-6||t>=1-1e-6) return null;
+  const p=vlerp(a,b,t); p[f.axis]=f.val;
+  for(const ax of ['x','y','z']){ if(ax===f.axis) continue; if(p[ax]<f.min[ax]-1e-6||p[ax]>f.max[ax]+1e-6) return null; }
+  return p;
+}
+function faceGamma(f, cosI, cx){
+  const e = f.ground ? cx.gE : cx.em[f.mat];
+  const rough = f.ground ? GROUND[S.ground].rough : MAT[f.mat].rough;
+  const g = fresnel(e.eta, cosI, cx.pol), r = roughness(rough, cosI, cx.lam);
+  return {re:g.re*r, im:g.im*r, mag:cabs(g)*r};
+}
+const matName = f => f.ground ? GROUND[S.ground].ar : MAT[f.mat].ar;
+
+function trace(src, rx, opt, cx){
+  const out = [];
+  const lam = cx.lam;
+  const add = (p) => { p.mag *= Math.pow(10,-p.pen/20); if(p.mag>0) out.push(p); };
+  // ---- order 0: LOS (+ penetration)
+  const L = vdist(src,rx), sl = segLoss(src,rx,cx,-1);
+  add({type: sl.loss>0.5?'pen':'los', pts:[src,rx], len:L, mag:lam/(4*Math.PI*L), ph0:0, pen:sl.loss, refl:0, diffJ:0,
+       anchor:src, base:0, hits:sl.hits, inter:[], ints:[]});
+  // ---- order 1
+  if(opt.order>=1){
+    for(const f of cx.faces){
+      if(!outward(src,f)||!outward(rx,f)) continue;
+      const I = mirror(src,f), P = hitPlane(I,rx,f); if(!P) continue;
+      const d1 = vdist(src,P), d2 = vdist(P,rx), cosI = Math.abs(P[f.axis]-src[f.axis])/d1;
+      const g = faceGamma(f,cosI,cx); if(g.mag<1e-4) continue;
+      const s1 = segLoss(src,P,cx,-1), s2 = segLoss(P,rx,cx,-1);
+      add({type:f.ground?'gr':'r1', pts:[src,P,rx], len:d1+d2, mag:lam/(4*Math.PI*(d1+d2))*g.mag, ph0:Math.atan2(g.im,g.re),
+           pen:s1.loss+s2.loss, refl:-20*log10(g.mag), diffJ:0, anchor:I, base:0, hits:s1.hits.concat(s2.hits),
+           inter:[matName(f)], ints:[{mat:f.ground?null:f.mat, ang:Math.acos(cosI)*180/Math.PI, g:g.mag}]});
+    }
+  }
+  // ---- order 2
+  if(opt.order>=2){
+    const F = cx.faces;
+    for(const A of F){
+      if(!outward(src,A)) continue;
+      const I1 = mirror(src,A);
+      for(const B of F){
+        if(B===A||!outward(rx,B)||!outward(I1,B)) continue;
+        if(A.ground&&B.ground) continue;
+        const I2 = mirror(I1,B), P2 = hitPlane(I2,rx,B); if(!P2) continue;
+        if(!outward(P2,A)) continue;
+        const P1 = hitPlane(I1,P2,A); if(!P1||!outward(P1,B)) continue;
+        const d1=vdist(src,P1), d2=vdist(P1,P2), d3=vdist(P2,rx);
+        const c1=Math.abs(P1[A.axis]-src[A.axis])/d1, c2=Math.abs(P2[B.axis]-P1[B.axis])/d2;
+        const g1=faceGamma(A,c1,cx), g2=faceGamma(B,c2,cx); const gm=g1.mag*g2.mag; if(gm<1e-4) continue;
+        const s1=segLoss(src,P1,cx,-1), s2=segLoss(P1,P2,cx,-1), s3=segLoss(P2,rx,cx,-1);
+        const pen=s1.loss+s2.loss+s3.loss; if(pen>60) continue;
+        const gp = cmul(g1,g2), Lt=d1+d2+d3;
+        add({type:'r2', pts:[src,P1,P2,rx], len:Lt, mag:lam/(4*Math.PI*Lt)*gm, ph0:Math.atan2(gp.im,gp.re), pen,
+             refl:-20*log10(gm), diffJ:0, anchor:I2, base:0, hits:s1.hits.concat(s2.hits,s3.hits),
+             inter:[matName(A),matName(B)], ints:[{mat:A.ground?null:A.mat,ang:Math.acos(c1)*180/Math.PI,g:g1.mag},{mat:B.ground?null:B.mat,ang:Math.acos(c2)*180/Math.PI,g:g2.mag}]});
+      }
+    }
+  }
+  // ---- knife-edge diffraction around obstacles that block LOS
+  if(opt.diff && sl.hits.length){
+    const dx=rx.x-src.x, dz=rx.z-src.z, Lxz=Math.hypot(dx,dz)||1, ux=dx/Lxz, uz=dz/Lxz;
+    const diffPath = (E,h,bx,label) => {
+      const d1=vdist(src,E), d2=vdist(E,rx);
+      const v = h*Math.sqrt(2*(d1+d2)/(lam*d1*d2));
+      const J = v>-0.78 ? 6.9+20*log10(Math.sqrt((v-0.1)*(v-0.1)+1)+v-0.1) : 0;  // ITU-R P.526 eq. 31
+      const s1=segLoss(src,E,cx,bx.o.idx), s2=segLoss(E,rx,cx,bx.o.idx);
+      add({type:'df', pts:[src,E,rx], len:d1+d2, mag:lam/(4*Math.PI*(d1+d2))*Math.pow(10,-J/20), ph0:-Math.PI/4,
+           pen:s1.loss+s2.loss, refl:0, diffJ:J, anchor:E, base:d1, hits:s1.hits.concat(s2.hits),
+           inter:[label+' '+MAT[bx.o.mat].ar], ints:[], v});
+    };
+    for(const bx of cx.boxes){
+      if(!sl.hits.includes(bx.o.idx) || MAT[bx.o.mat].kind==='veg') continue;
+      const s = slab(src,rx,bx.min,bx.max); if(!s) continue;
+      const M = vlerp(src,rx,(s[0]+s[1])/2);
+      const Et = {x:M.x, y:bx.max.y+0.03, z:M.z};
+      diffPath(Et, Et.y-M.y, bx, 'حافة علوية');
+      const side = {};
+      for(const [cxp,czp] of [[bx.min.x,bx.min.z],[bx.min.x,bx.max.z],[bx.max.x,bx.min.z],[bx.max.x,bx.max.z]]){
+        const rxp=cxp-src.x, rzp=czp-src.z, cr=ux*rzp-uz*rxp, t=(rxp*ux+rzp*uz)/Lxz;
+        if(t<=0.01||t>=0.99) continue;
+        const k = cr>=0?'p':'n';
+        if(!side[k] || Math.abs(cr)>Math.abs(side[k].cr)) side[k]={cr,cxp,czp,t};
+      }
+      for(const k in side){
+        const sd=side[k], cc={x:(bx.min.x+bx.max.x)/2, z:(bx.min.z+bx.max.z)/2};
+        const ox=sd.cxp-cc.x, oz=sd.czp-cc.z, on=Math.hypot(ox,oz)||1;
+        const E={x:sd.cxp+ox/on*0.05, y:src.y+(rx.y-src.y)*sd.t, z:sd.czp+oz/on*0.05};
+        diffPath(E, Math.abs(sd.cr), bx, 'حافة جانبية');
+      }
+    }
+  }
+  // ---- diffuse scattering (bistatic radar equation)
+  if(opt.scat){
+    for(const bx of cx.boxes){
+      const m = MAT[bx.o.mat]; if(!m.kind) continue;
+      const o=bx.o, Sp={x:o.c.x, y:m.kind==='veg'?o.s.y*0.62:o.s.y*0.6, z:o.c.z};
+      const sigma = m.kind==='veg' ? 0.25*o.s.x*o.s.y : 0.6;
+      const d1=vdist(src,Sp), d2=vdist(Sp,rx);
+      const s1=segLoss(src,Sp,cx,o.idx), s2=segLoss(Sp,rx,cx,o.idx);
+      add({type:'sc', pts:[src,Sp,rx], len:d1+d2, mag:lam*Math.sqrt(sigma)/(Math.pow(4*Math.PI,1.5)*d1*d2),
+           ph0:(o.idx*2.399963)%(2*Math.PI), pen:s1.loss+s2.loss, refl:0, diffJ:0, anchor:Sp, base:d1,
+           hits:s1.hits.concat(s2.hits), inter:[m.ar+' σ='+sigma.toFixed(1)+'m²'], ints:[], sigma});
+    }
+  }
+  return out;
+}
+
+/* Evaluate a traced path set at the receiver and produce link metrics */
+function evaluate(){
+  const t0 = performance.now();
+  const cx = buildCtx(); S.cx = cx;
+  const A0 = Math.sqrt(db2lin(S.pt + S.gt + S.gr));           // sqrt(mW)
+  let paths = trace(S.tx, S.rx, {order:S.order, diff:S.diff, scat:S.scat}, cx);
+  paths.forEach(p=>{ p.amp=A0*p.mag; p.P=lin2db(p.amp*p.amp); });
+  paths.sort((a,b)=>b.P-a.P);
+  const maxP = paths.length?paths[0].P:-300;
+  paths = paths.filter(p=>p.P>maxP-65 && p.P>-170).slice(0,48);
+  let Er=0, Ei=0, Pinc=0;
+  const tmin = Math.min(...paths.map(p=>p.len))/C0;
+  paths.forEach(p=>{
+    const ph = p.ph0 - cx.k*p.len; p.E={re:p.amp*Math.cos(ph), im:p.amp*Math.sin(ph)};
+    Er+=p.E.re; Ei+=p.E.im; Pinc+=p.amp*p.amp;
+    p.tau = p.len/C0; p.tex = p.tau - tmin;
+    const last = p.pts[p.pts.length-2], dd=vdist(last,S.rx)||1;
+    p.dir = {x:(last.x-S.rx.x)/dd, y:(last.y-S.rx.y)/dd, z:(last.z-S.rx.z)/dd};
+  });
+  const Pcoh = Er*Er+Ei*Ei;
+  // interference
+  let Imw=0, ipaths=[];
+  if(S.intOn){
+    const AI = Math.sqrt(db2lin(S.ipt + S.gt + S.gr));
+    ipaths = trace(S.it, S.rx, {order:Math.min(S.order,1), diff:S.diff, scat:false}, cx);
+    ipaths.forEach(p=>{ p.amp=AI*p.mag; p.P=lin2db(p.amp*p.amp); });
+    ipaths.sort((a,b)=>b.P-a.P);
+    const acir = S.ich==='co'?0:(S.ich==='adj'?20:Infinity);
+    if(isFinite(acir)) Imw = ipaths.reduce((s,p)=>s+p.amp*p.amp,0)/db2lin(acir);
+  }
+  const Nmw = db2lin(-174 + 10*log10(S.bw) + S.nf);
+  // delay statistics (power-weighted, excess delay)
+  let sp=0,s1=0,s2=0; paths.forEach(p=>{const w=p.amp*p.amp; sp+=w; s1+=w*p.tex; s2+=w*p.tex*p.tex;});
+  const tauMean=s1/sp, tauRms=Math.sqrt(Math.max(0,s2/sp-tauMean*tauMean));
+  // Doppler
+  const vv = velVec();
+  paths.forEach(p=>{ p.fd = (vv.x*p.dir.x+vv.z*p.dir.z)/cx.lam; });
+  const fDmax = S.v/cx.lam;
+  // FSPL reference (lecture model)
+  const d = vdist(S.tx,S.rx), FSPL = 20*log10(4*Math.PI*d/cx.lam);
+  const SINR = lin2db(Pcoh/(Imw+Nmw)), SNR = lin2db(Pcoh/Nmw), SINRm = lin2db(Pinc/(Imw+Nmw));
+  // diversity antenna (λ/2 to the side)
+  const r2 = {x:S.rx.x + cx.lam/2, y:S.rx.y, z:S.rx.z};
+  const P2 = powerAt(paths, r2, cx.k);
+  S.cur = {paths, Pcoh, Pinc, P2};
+  S.curI = ipaths.slice(0,10);
+  S.M = {Pcoh:lin2db(Pcoh), Pinc:lin2db(Pinc), P2:lin2db(P2), Imw, Nmw, I:lin2db(Imw), N:lin2db(Nmw), SINR, SNR, SINRm,
+    tauMean, tauRms, Bc:tauRms>0?1/(5*tauRms):Infinity, fDmax, Tc:fDmax>0?0.423/fDmax:Infinity,
+    d, FSPL, Pfspl:S.pt+S.gt+S.gr-FSPL, lam:cx.lam, n:paths.length, ms:performance.now()-t0,
+    cap:S.bw*Math.log2(1+db2lin(SINR))};
+  S.M.mcs = pickMCS(SINR);
+}
+function powerAt(paths, pos, k){
+  let r=0,i=0;
+  for(const p of paths){ const L=p.base+vdist(p.anchor,pos); const ph=p.ph0-k*L; r+=p.amp*Math.cos(ph); i+=p.amp*Math.sin(ph); }
+  return r*r+i*i;
+}
+function velVec(){ const h=S.hdg*Math.PI/180; return {x:S.v*Math.cos(h), y:0, z:S.v*Math.sin(h)}; }
+
+const MCS = [
+  {i:0,m:'BPSK',r:'1/2',th:2,rate:6.5},{i:1,m:'QPSK',r:'1/2',th:5,rate:13},{i:2,m:'QPSK',r:'3/4',th:9,rate:19.5},
+  {i:3,m:'16QAM',r:'1/2',th:11,rate:26},{i:4,m:'16QAM',r:'3/4',th:15,rate:39},{i:5,m:'64QAM',r:'2/3',th:18,rate:52},
+  {i:6,m:'64QAM',r:'3/4',th:20,rate:58.5},{i:7,m:'64QAM',r:'5/6',th:25,rate:65},{i:8,m:'256QAM',r:'3/4',th:29,rate:78}
+];
+function pickMCS(s){ let best=null; for(const m of MCS) if(s>=m.th) best=m; return best; }
+
+/* =====================================================================
+   4. THREE.JS STAGE
+   ===================================================================== */
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.domElement.className='gl';
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x06090e);
+scene.fog = new THREE.Fog(0x06090e, 80, 160);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
+camera.position.set(-18, 42, 52);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(0,0,0); controls.enableDamping=true; controls.maxPolarAngle=Math.PI*0.495; controls.minDistance=8; controls.maxDistance=140;
+
+scene.add(new THREE.HemisphereLight(0xbcd3ff, 0x1a1208, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(-20,40,25); scene.add(sun);
+const fill = new THREE.DirectionalLight(0x6fa8ff, 0.25); fill.position.set(30,20,-30); scene.add(fill);
+
+const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(200,200), new THREE.MeshStandardMaterial({color:0x0c1119, roughness:1}));
+groundMesh.rotation.x = -Math.PI/2; scene.add(groundMesh);
+const grid = new THREE.GridHelper(68, 34, 0x24324a, 0x151d2b); grid.position.y=0.01; grid.scale.z = 44/68; scene.add(grid);
+{ const pts=[[-34,-22],[34,-22],[34,22],[-34,22],[-34,-22]].map(p=>new THREE.Vector3(p[0],0.02,p[1]));
+  scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({color:0x34445f}))); }
+
+/* label sprites */
+function makeLabel(main, sub, color='#DCE4F0'){
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=140; const g=cv.getContext('2d');
+  g.fillStyle='rgba(9,12,18,0.78)'; roundRect(g,6,10,500,120,22); g.fill();
+  g.strokeStyle='rgba(60,78,108,0.9)'; g.lineWidth=3; roundRect(g,6,10,500,120,22); g.stroke();
+  g.textAlign='center'; g.direction='rtl'; g.fillStyle=color; g.font='600 50px "IBM Plex Sans Arabic", Tahoma, sans-serif'; g.fillText(main,256,66);
+  g.direction='ltr'; g.fillStyle='#8C98AF'; g.font='400 34px "IBM Plex Mono", monospace'; g.fillText(sub,256,112);
+  const tex=new THREE.CanvasTexture(cv); tex.anisotropy=4;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, depthWrite:false, transparent:true}));
+  sp.scale.set(4.4,1.2,1); sp.renderOrder=5; return sp;
+}
+function roundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+
+function brickTexture(){
+  const cv=document.createElement('canvas'); cv.width=cv.height=128; const g=cv.getContext('2d');
+  g.fillStyle='#5b3324'; g.fillRect(0,0,128,128);
+  for(let r=0;r<8;r++) for(let c=-1;c<5;c++){ const x=c*32+(r%2?16:0); g.fillStyle=`hsl(${12+Math.random()*8},${45+Math.random()*10}%,${34+Math.random()*8}%)`; g.fillRect(x+1,r*16+1,30,14); }
+  const t=new THREE.CanvasTexture(cv); t.wrapS=t.wrapT=THREE.RepeatWrapping; return t;
+}
+const BRICK_TEX = brickTexture();
+
+/* entity meshes */
+const pickables = [];
+function makeMast(color, label, sub){
+  const g = new THREE.Group();
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.14,1,10), new THREE.MeshStandardMaterial({color:0x56637a, metalness:.6, roughness:.4}));
+  const head = new THREE.Mesh(new THREE.OctahedronGeometry(0.45), new THREE.MeshStandardMaterial({color, emissive:color, emissiveIntensity:0.7}));
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.9,1.05,40), new THREE.MeshBasicMaterial({color, transparent:true, opacity:.55, side:THREE.DoubleSide}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=0.03;
+  const lab = makeLabel(label, sub);
+  g.add(mast, head, ring, lab); g.userData={mast, head, lab};
+  scene.add(g); return g;
+}
+const txG = makeMast(0x62d2ff, 'المرسل Tx', 'Access Point'); txG.userData.pick='tx';
+const rxG = makeMast(0x3ddc97, 'المستقبل Rx', 'UE'); rxG.userData.pick='rx';
+const itG = makeMast(0xff5f6d, 'برج متداخل', 'Interferer'); itG.userData.pick='it';
+pickables.push(txG, rxG, itG);
+function placeMast(g, p){ g.position.set(p.x,0,p.z); const u=g.userData; u.mast.scale.y=p.y; u.mast.position.y=p.y/2; u.head.position.y=p.y; u.lab.position.y=p.y+1.3; }
+
+/* wavefront shells (visual cue of radiation) */
+const shells = [];
+function makeShells(color, n){ const arr=[]; for(let i=0;i<n;i++){ const m=new THREE.Mesh(new THREE.SphereGeometry(1,28,14), new THREE.MeshBasicMaterial({color, transparent:true, opacity:.12, wireframe:true, depthWrite:false})); m.userData.ph=i/n; scene.add(m); arr.push(m);} return arr; }
+const txShells = makeShells(0x62d2ff, 4), itShells = makeShells(0xff5f6d, 3);
+
+let obsMeshes = [];
+function buildObstacle(o){
+  const m = MAT[o.mat], g = new THREE.Group();
+  g.userData = {pick:'obs', idx:o.idx};
+  if(m.kind==='veg'){
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.28,o.s.y*0.5,8), new THREE.MeshStandardMaterial({color:0x5a3c22, roughness:1}));
+    trunk.position.y = -o.s.y/2 + o.s.y*0.25; g.add(trunk);
+    const lm = new THREE.MeshStandardMaterial({color:m.col, roughness:.9, flatShading:true});
+    const r = Math.min(o.s.x,o.s.z)/2;
+    [[0,0.15,0,1],[0.45,-0.05,0.3,0.75],[-0.4,0,-0.35,0.8],[0.2,0.35,-0.4,0.7],[-0.3,0.3,0.4,0.7]].forEach(q=>{
+      const s=new THREE.Mesh(new THREE.IcosahedronGeometry(r*q[3],1), lm); s.position.set(q[0]*r, o.s.y*0.12+q[1]*o.s.y*0.5, q[2]*r); g.add(s); });
+  } else if(m.kind==='body'){
+    const mat = new THREE.MeshStandardMaterial({color:m.col, roughness:.7});
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.17,1.3,12), mat); torso.position.y=-0.2; g.add(torso);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.15,14,10), mat); head.position.y=0.68; g.add(head);
+  } else {
+    const opts = {color:m.col, roughness:.75, metalness:0};
+    if(o.mat==='metal') Object.assign(opts,{metalness:.85, roughness:.3, color:0x8d9aae});
+    if(o.mat==='glass') Object.assign(opts,{transparent:true, opacity:.32, roughness:.05, metalness:.2, color:0x8fdcff, depthWrite:false});
+    if(o.mat==='brick'){ const t=BRICK_TEX.clone(); t.needsUpdate=true; t.repeat.set(Math.max(o.s.x,o.s.z)/1.2, o.s.y/0.6); opts.map=t; opts.color=0xffffff; }
+    const box = new THREE.Mesh(new THREE.BoxGeometry(o.s.x,o.s.y,o.s.z), new THREE.MeshStandardMaterial(opts));
+    g.add(box);
+    if(o.mat==='glass'){ const e=new THREE.LineSegments(new THREE.EdgesGeometry(box.geometry), new THREE.LineBasicMaterial({color:0x8fdcff, transparent:true, opacity:.7})); g.add(e); }
+  }
+  const lab = makeLabel(o.name, m.en); lab.position.y = o.s.y/2 + 1.1; g.add(lab); g.userData.lab=lab;
+  g.position.set(o.c.x, o.c.y, o.c.z);
+  return g;
+}
+const selBox = new THREE.Box3Helper(new THREE.Box3(), 0xF2A93B); scene.add(selBox);
+function rebuildObstacles(){
+  obsMeshes.forEach(g=>{ scene.remove(g); const i=pickables.indexOf(g); if(i>=0) pickables.splice(i,1); });
+  obsMeshes = S.obs.map(o=>{ const g=buildObstacle(o); scene.add(g); pickables.push(g); return g; });
+  syncObstacles();
+}
+function syncObstacles(){
+  S.obs.forEach((o,i)=>{ const g=obsMeshes[i]; g.position.set(o.c.x,o.c.y,o.c.z); g.visible=o.on; g.userData.lab.visible=S.showLab; });
+  const o=S.obs[S.sel];
+  if(o && o.on){ const b=obsBox(o); selBox.box.set(new THREE.Vector3(b.min.x-.08,b.min.y,b.min.z-.08), new THREE.Vector3(b.max.x+.08,b.max.y+.08,b.max.z+.08)); selBox.visible=true; }
+  else selBox.visible=false;
+  [txG,rxG,itG].forEach(g=>g.userData.lab.visible=S.showLab);
+  itG.visible = S.intOn;
+}
+
+/* ray line pool */
+const LINE_MAX = 64, ILINE_MAX = 10;
+function makeLinePool(n, dashed){
+  const arr=[];
+  for(let i=0;i<n;i++){
+    const geo=new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(15),3));
+    const mat = dashed ? new THREE.LineDashedMaterial({color:0xff5f6d, dashSize:.6, gapSize:.45, transparent:true, opacity:.5})
+                       : new THREE.LineBasicMaterial({transparent:true, opacity:1, depthWrite:false});
+    const ln=new THREE.Line(geo,mat); ln.visible=false; ln.renderOrder=3; scene.add(ln); arr.push(ln);
+  }
+  return arr;
+}
+const lines = makeLinePool(LINE_MAX,false), ilines = makeLinePool(ILINE_MAX,true);
+
+/* interaction markers + flow particles */
+function dotTexture(){ const cv=document.createElement('canvas'); cv.width=cv.height=64; const g=cv.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(.35,'rgba(255,255,255,.65)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(cv); }
+const DOT = dotTexture();
+const PMAX = 1100;
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(PMAX*3),3));
+pGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(PMAX*3),3));
+const pts = new THREE.Points(pGeo, new THREE.PointsMaterial({size:0.55, map:DOT, vertexColors:true, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending}));
+pts.renderOrder=4; scene.add(pts);
+const HMAX=160;
+const hGeo = new THREE.BufferGeometry();
+hGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(HMAX*3),3));
+hGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(HMAX*3),3));
+const hits3 = new THREE.Points(hGeo, new THREE.PointsMaterial({size:0.9, map:DOT, vertexColors:true, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending}));
+scene.add(hits3);
+
+/* heatmap */
+const HX=68, HZ=44;
+const heatData = new Uint8Array(HX*HZ*4);
+const heatTex = new THREE.DataTexture(heatData, HX, HZ, THREE.RGBAFormat);
+heatTex.magFilter = THREE.LinearFilter; heatTex.minFilter = THREE.LinearFilter;
+const heatMesh = new THREE.Mesh(new THREE.PlaneGeometry(68,44), new THREE.MeshBasicMaterial({map:heatTex, transparent:true, depthWrite:false}));
+heatMesh.rotation.x=-Math.PI/2; heatMesh.position.y=0.04; heatMesh.visible=false; scene.add(heatMesh);
+
+const INFERNO = [[13,8,41],[66,16,109],[147,37,103],[221,81,58],[252,165,10],[252,255,164]];
+function ramp(t){ t=clamp(t,0,1)*(INFERNO.length-1); const i=Math.min(INFERNO.length-2,Math.floor(t)), f=t-i, a=INFERNO[i], b=INFERNO[i+1]; return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; }
+let heatTimer=null;
+function scheduleHeat(){ if(S.heat==='off') return; clearTimeout(heatTimer); heatTimer=setTimeout(computeHeat, 260); }
+function computeHeat(){
+  if(S.heat==='off'){ heatMesh.visible=false; return; }
+  const cx = buildCtx(), A0=Math.sqrt(db2lin(S.pt+S.gt+S.gr)), AI=Math.sqrt(db2lin(S.ipt+S.gt+S.gr));
+  const Nmw = db2lin(-174+10*log10(S.bw)+S.nf), acir = S.ich==='co'?1:(S.ich==='adj'?100:Infinity);
+  const [lo,hi] = S.heat==='prx' ? [-100,-30] : [-5,40];
+  for(let j=0;j<HZ;j++) for(let i=0;i<HX;i++){
+    const p={x:-34+i+0.5, y:1.5, z:-22+j+0.5};
+    const k=(j*HX+i)*4;
+    let inside=false; for(const b of cx.boxes){ if(p.x>b.min.x&&p.x<b.max.x&&p.z>b.min.z&&p.z<b.max.z&&b.max.y>1.5){inside=true;break;} }
+    if(inside){ heatData[k+3]=0; continue; }
+    let P=0; for(const q of trace(S.tx,p,{order:1,diff:S.diff,scat:false},cx)) P+=q.mag*q.mag; P*=A0*A0;
+    let val;
+    if(S.heat==='prx') val=lin2db(P);
+    else { let I=0; if(S.intOn&&isFinite(acir)){ for(const q of trace(S.it,p,{order:1,diff:false,scat:false},cx)) I+=q.mag*q.mag; I*=AI*AI/acir; } val=lin2db(P/(I+Nmw)); }
+    const c=ramp((val-lo)/(hi-lo));
+    heatData[k]=c[0]; heatData[k+1]=c[1]; heatData[k+2]=c[2];
+    heatData[k+3] = (S.heat==='prx' && val<S.sens) ? 70 : 205;
+  }
+  heatTex.needsUpdate=true; heatMesh.visible=true;
+  $('heatLo').textContent=lo; $('heatHi').textContent=hi;
+  $('heatTitle').textContent = S.heat==='prx' ? 'القدرة المستقبَلة المتوسطة عند 1.5 m (dBm)' : 'SINR المتوسط (dB)';
+}
+
+/* push traced geometry to the GPU */
+let flow = [];
+function updateRays(){
+  const P = S.cur.paths, maxP = P.length?P[0].P:0;
+  const hp = hGeo.attributes.position.array, hc = hGeo.attributes.color.array; let hn=0;
+  flow = [];
+  for(let i=0;i<LINE_MAX;i++){
+    const ln=lines[i], p=P[i];
+    if(!p||!S.showRays){ ln.visible=false; continue; }
+    const arr=ln.geometry.attributes.position.array;
+    p.pts.forEach((q,j)=>{arr[j*3]=q.x;arr[j*3+1]=q.y;arr[j*3+2]=q.z;});
+    ln.geometry.setDrawRange(0,p.pts.length); ln.geometry.attributes.position.needsUpdate=true; ln.geometry.computeBoundingSphere();
+    const rel = clamp((p.P-maxP+50)/50,0,1);
+    ln.material.color.set(TYPES[p.type].c); ln.material.opacity = 0.12+0.88*rel*rel; ln.visible=true;
+  }
+  P.forEach(p=>{
+    const rel = clamp((p.P-maxP+50)/50,0,1), col=new THREE.Color(TYPES[p.type].c);
+    for(let j=1;j<p.pts.length-1 && hn<HMAX;j++){ const q=p.pts[j]; hp[hn*3]=q.x;hp[hn*3+1]=q.y;hp[hn*3+2]=q.z; hc[hn*3]=col.r*rel;hc[hn*3+1]=col.g*rel;hc[hn*3+2]=col.b*rel; hn++; }
+    const seg=[]; let tot=0; for(let j=0;j<p.pts.length-1;j++){ const L=vdist(p.pts[j],p.pts[j+1]); seg.push(L); tot+=L; }
+    flow.push({p, seg, tot, n:Math.round(2+9*Math.pow(rel,1.5)), col, rel});
+  });
+  hGeo.setDrawRange(0,hn); hGeo.attributes.position.needsUpdate=true; hGeo.attributes.color.needsUpdate=true;
+  // interferer
+  for(let i=0;i<ILINE_MAX;i++){
+    const ln=ilines[i], p=S.curI[i];
+    if(!p||!S.showRays||!S.intOn){ ln.visible=false; continue; }
+    const arr=ln.geometry.attributes.position.array; p.pts.forEach((q,j)=>{arr[j*3]=q.x;arr[j*3+1]=q.y;arr[j*3+2]=q.z;});
+    ln.geometry.setDrawRange(0,p.pts.length); ln.geometry.attributes.position.needsUpdate=true; ln.computeLineDistances(); ln.geometry.computeBoundingSphere();
+    ln.material.opacity = 0.15 + 0.6*clamp((p.P-S.curI[0].P+40)/40,0,1); ln.visible=true;
+  }
+}
+function animateFlow(t){
+  const pa=pGeo.attributes.position.array, ca=pGeo.attributes.color.array; let n=0;
+  if(S.showPart){
+    const speed=11; // m/s, slowed for display
+    for(const f of flow){
+      for(let k=0;k<f.n && n<PMAX;k++){
+        let s = ((t*speed/1000 + k*f.tot/f.n + f.tot*0.37*f.p.len%1) % f.tot);
+        let j=0; while(j<f.seg.length-1 && s>f.seg[j]){ s-=f.seg[j]; j++; }
+        const a=f.p.pts[j], b=f.p.pts[j+1], u=clamp(s/f.seg[j],0,1);
+        pa[n*3]=a.x+(b.x-a.x)*u; pa[n*3+1]=a.y+(b.y-a.y)*u; pa[n*3+2]=a.z+(b.z-a.z)*u;
+        const br=0.35+0.65*f.rel; ca[n*3]=f.col.r*br; ca[n*3+1]=f.col.g*br; ca[n*3+2]=f.col.b*br; n++;
+      }
+    }
+  }
+  pGeo.setDrawRange(0,n); pGeo.attributes.position.needsUpdate=true; pGeo.attributes.color.needsUpdate=true;
+  const sh=(arr,src,on)=>arr.forEach(m=>{ const ph=((t/2600)+m.userData.ph)%1; m.visible=on; m.position.set(src.x,src.y,src.z); const r=0.5+ph*26; m.scale.set(r,r,r); m.material.opacity=0.16*(1-ph); });
+  sh(txShells,S.tx,true); sh(itShells,S.it,S.intOn);
+}
+
+/* drag & pick */
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), gPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+let drag=null;
+function setNdc(e){ const r=renderer.domElement.getBoundingClientRect(); ndc.set(((e.clientX-r.left)/r.width)*2-1, -((e.clientY-r.top)/r.height)*2+1); }
+function groundPoint(){ const p=new THREE.Vector3(); return ray.ray.intersectPlane(gPlane,p)?p:null; }
+stage.addEventListener('pointerdown', e=>{
+  if(e.target!==renderer.domElement) return;
+  setNdc(e); ray.setFromCamera(ndc,camera);
+  const hit = ray.intersectObjects(pickables,true).find(h=>h.object.type!=='Sprite');
+  if(!hit) return;
+  let o=hit.object; while(o && !o.userData.pick) o=o.parent; if(!o) return;
+  const kind=o.userData.pick, gp=groundPoint(); if(!gp) return;
+  const tgt = kind==='obs' ? S.obs[o.userData.idx].c : S[kind];
+  if(kind==='obs'){ S.sel=o.userData.idx; renderObsList(); }
+  drag={kind, tgt, off:{x:tgt.x-gp.x, z:tgt.z-gp.z}};
+  controls.enabled=false; renderer.domElement.setPointerCapture(e.pointerId);
+}, true);
+stage.addEventListener('pointermove', e=>{
+  if(!drag) return; setNdc(e); ray.setFromCamera(ndc,camera); const gp=groundPoint(); if(!gp) return;
+  drag.tgt.x=clamp(gp.x+drag.off.x,-BOUNDS.x,BOUNDS.x); drag.tgt.z=clamp(gp.z+drag.off.z,-BOUNDS.z,BOUNDS.z);
+  if(drag.kind==='rx') traceBuf.length=0;
+  markDirty(false);
+});
+const endDrag=()=>{ if(drag){ drag=null; controls.enabled=true; markDirty(true); renderEditor(); } };
+stage.addEventListener('pointerup', endDrag); stage.addEventListener('pointercancel', endDrag);
+
+function resize(){ const w=stage.clientWidth, h=stage.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage);
+
+/* =====================================================================
+   5. MOBILITY + FADING TRACE (sub-wavelength sampling via path anchors)
+   ===================================================================== */
+const traceBuf = []; let traceT = 0;
+function moveRx(dt){
+  if(!S.cur||S.v<=0) return;
+  const lam=S.cx.lam, k=S.cx.k, step=S.v*dt;
+  const n = clamp(Math.ceil(step/(lam/8)),1,40);
+  let h=S.hdg*Math.PI/180;
+  for(let i=1;i<=n;i++){
+    const pos={x:S.rx.x+Math.cos(h)*step*i/n, y:S.rx.y, z:S.rx.z+Math.sin(h)*step*i/n};
+    const p1=powerAt(S.cur.paths,pos,k), p2=powerAt(S.cur.paths,{x:pos.x+lam/2,y:pos.y,z:pos.z},k);
+    traceT += dt/n;
+    traceBuf.push({t:traceT, a:lin2db(p1), b:lin2db(p2), mrc:lin2db(p1+p2), mean:lin2db(S.cur.Pinc)});
+  }
+  while(traceBuf.length>1400) traceBuf.shift();
+  S.rx.x += Math.cos(h)*step; S.rx.z += Math.sin(h)*step;
+  if(Math.abs(S.rx.x)>BOUNDS.x-1){ S.rx.x=clamp(S.rx.x,-BOUNDS.x+1,BOUNDS.x-1); S.hdg=(540-S.hdg)%360; syncHdg(); }
+  if(Math.abs(S.rx.z)>BOUNDS.z-1){ S.rx.z=clamp(S.rx.z,-BOUNDS.z+1,BOUNDS.z-1); S.hdg=(360-S.hdg)%360; syncHdg(); }
+}
+function syncHdg(){ $('hdg').value=Math.round(S.hdg); $('hdgO').textContent=Math.round(S.hdg)+'°'; }
+
+/* =====================================================================
+   6. DSP CHAIN — RC pulse, discrete channel, MMSE-FIR, Gray QAM, (7,5) Viterbi
+   ===================================================================== */
+const sinc = x => Math.abs(x)<1e-9?1:Math.sin(Math.PI*x)/(Math.PI*x);
+function rcPulse(t,Ts,beta){ const x=t/Ts, den=1-Math.pow(2*beta*x,2); if(Math.abs(den)<1e-8) return (Math.PI/4)*sinc(1/(2*beta)); return sinc(x)*Math.cos(Math.PI*beta*x)/den; }
+const MODS = {BPSK:{bps:1,m:0,M:2}, QPSK:{bps:2,m:1,M:4}, '16QAM':{bps:4,m:2,M:16}, '64QAM':{bps:6,m:3,M:64}};
+function modTables(mod){
+  const md=MODS[mod]; if(md.m===0) return {md, lv:[-1,1], gray:[0,1], inv:[0,1], sc:1};
+  const L=1<<md.m, lv=[], gray=[], inv=[]; for(let i=0;i<L;i++){ lv.push(2*i-L+1); gray.push(i^(i>>1)); inv[i^(i>>1)]=i; }
+  return {md, lv, gray, inv, sc:Math.sqrt(2*(md.M-1)/3)};
+}
+function mapBits(bits, T){
+  const {md,lv,inv,sc}=T, ns=bits.length/md.bps, re=new Float64Array(ns), im=new Float64Array(ns);
+  for(let n=0;n<ns;n++){
+    const o=n*md.bps;
+    if(md.m===0){ re[n]=bits[o]?1:-1; continue; }
+    let gi=0,gq=0; for(let b=0;b<md.m;b++){ gi=(gi<<1)|bits[o+b]; gq=(gq<<1)|bits[o+md.m+b]; }
+    re[n]=lv[inv[gi]]/sc; im[n]=lv[inv[gq]]/sc;
+  }
+  return {re,im};
+}
+function demap(yr, yi, T, out, o){
+  const {md,lv,gray,sc}=T;
+  if(md.m===0){ out[o]=yr>0?1:0; return; }
+  const L=lv.length, q=v=>clamp(Math.round((v*sc+L-1)/2),0,L-1);
+  const gi=gray[q(yr)], gq=gray[q(yi)];
+  for(let b=0;b<md.m;b++){ out[o+b]=(gi>>(md.m-1-b))&1; out[o+md.m+b]=(gq>>(md.m-1-b))&1; }
+}
+function convEnc(bits){ const out=new Uint8Array(2*(bits.length+2)); let r1=0,r2=0,k=0; for(let i=0;i<bits.length+2;i++){ const b=i<bits.length?bits[i]:0; out[k++]=b^r1^r2; out[k++]=b^r2; r2=r1; r1=b; } return out; }
+function viterbi(rx, nInfo){
+  const T=nInfo+2, prev=new Uint8Array(T*4); let m=[0,1e9,1e9,1e9];
+  for(let t=0;t<T;t++){
+    const nm=[1e9,1e9,1e9,1e9], a=rx[2*t], b2=rx[2*t+1];
+    for(let s=0;s<4;s++){ if(m[s]>=1e9) continue; const r1=s>>1, r2=s&1;
+      for(let b=0;b<2;b++){ const o0=b^r1^r2, o1=b^r2, ns=(b<<1)|r1, v=m[s]+(o0!==a)+(o1!==b2); if(v<nm[ns]){nm[ns]=v; prev[t*4+ns]=s;} } }
+    m=nm;
+  }
+  const out=new Uint8Array(T); let s=0; for(let t=T-1;t>=0;t--){ out[t]=s>>1; s=prev[t*4+s]; }
+  return out.subarray(0,nInfo);
+}
+function gauss(){ let u=0,v=0; while(u===0)u=Math.random(); v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+function csolve(Ar,Ai,br,bi,n){
+  for(let c=0;c<n;c++){
+    let p=c,best=-1; for(let r=c;r<n;r++){ const v=Ar[r*n+c]**2+Ai[r*n+c]**2; if(v>best){best=v;p=r;} }
+    if(p!==c){ for(let k=0;k<n;k++){ let t=Ar[c*n+k];Ar[c*n+k]=Ar[p*n+k];Ar[p*n+k]=t; t=Ai[c*n+k];Ai[c*n+k]=Ai[p*n+k];Ai[p*n+k]=t; } let t=br[c];br[c]=br[p];br[p]=t; t=bi[c];bi[c]=bi[p];bi[p]=t; }
+    const pr=Ar[c*n+c], pi=Ai[c*n+c], pd=pr*pr+pi*pi;
+    for(let r=c+1;r<n;r++){
+      const ar=Ar[r*n+c], ai=Ai[r*n+c], fr=(ar*pr+ai*pi)/pd, fi=(ai*pr-ar*pi)/pd;
+      for(let k=c;k<n;k++){ const xr=Ar[c*n+k], xi=Ai[c*n+k]; Ar[r*n+k]-=fr*xr-fi*xi; Ai[r*n+k]-=fr*xi+fi*xr; }
+      br[r]-=fr*br[c]-fi*bi[c]; bi[r]-=fr*bi[c]+fi*br[c];
+    }
+  }
+  const xr=new Float64Array(n), xi=new Float64Array(n);
+  for(let r=n-1;r>=0;r--){
+    let sr=br[r], si=bi[r];
+    for(let k=r+1;k<n;k++){ sr-=Ar[r*n+k]*xr[k]-Ai[r*n+k]*xi[k]; si-=Ar[r*n+k]*xi[k]+Ai[r*n+k]*xr[k]; }
+    const pr=Ar[r*n+r], pi=Ai[r*n+r], pd=pr*pr+pi*pi; xr[r]=(sr*pr+si*pi)/pd; xi[r]=(si*pr-sr*pi)/pd;
+  }
+  return {xr,xi};
+}
+function buildTaps(){
+  const P=S.cur.paths, Ts=1/S.rs, beta=0.35, pre=3;
+  const maxEx=Math.max(...P.map(p=>p.tex));
+  const K=clamp(Math.ceil(maxEx/Ts)+pre+4, pre+4, 56);
+  const hr=new Float64Array(K), hi=new Float64Array(K), nrm=1/Math.sqrt(S.cur.Pinc);
+  for(const p of P){ for(let k=0;k<K;k++){ const g=rcPulse((k-pre)*Ts-p.tex,Ts,beta); hr[k]+=p.E.re*g*nrm; hi[k]+=p.E.im*g*nrm; } }
+  let kmax=0,best=0; for(let k=0;k<K;k++){ const v=hr[k]*hr[k]+hi[k]*hi[k]; if(v>best){best=v;kmax=k;} }
+  return {hr,hi,K,kmax,pre};
+}
+let dspRes=null;
+function runDSP(){
+  if(!S.cur||!S.cur.paths.length) return;
+  const T=modTables(S.mod), md=T.md, ch=buildTaps(), {hr,hi,K,kmax}=ch;
+  const s2=(S.M.Nmw+S.M.Imw)/S.cur.Pinc, sd=Math.sqrt(s2/2);
+  const Ns=3000;
+  // equalizer design
+  let eq=null, D=kmax;
+  if(S.eq==='mmse'){
+    const Lw=clamp(2*K+5,11,41); D=clamp(Math.floor((Lw-1)/2)+kmax,0,Lw+K-2);
+    const n=Lw, Ar=new Float64Array(n*n), Ai=new Float64Array(n*n), br=new Float64Array(n), bi=new Float64Array(n);
+    const H=(i,l)=>{ const k=l-i; return (k>=0&&k<K)?[hr[k],hi[k]]:[0,0]; };
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++){ let sr=0,si=0; for(let l=0;l<n+K-1;l++){ const a=H(i,l), b=H(j,l); sr+=a[0]*b[0]+a[1]*b[1]; si+=a[1]*b[0]-a[0]*b[1]; } Ar[i*n+j]=sr+(i===j?s2:0); Ai[i*n+j]=si; }
+    for(let i=0;i<n;i++){ const a=H(i,D); br[i]=a[0]; bi[i]=a[1]; }
+    const pr=br.slice(), pim=bi.slice();
+    const w=csolve(Ar,Ai,br,bi,n);
+    let g=0; for(let i=0;i<n;i++) g+=w.xr[i]*pr[i]+w.xi[i]*pim[i];
+    eq={w, n, g};
+  }
+  const runStream = bits => {
+    const sym=mapBits(bits,T), N=sym.re.length, M=N+K+50, rr=new Float64Array(M), ri=new Float64Array(M);
+    for(let m=0;m<M;m++){ let a=0,b=0; for(let k=0;k<K;k++){ const n=m-k; if(n<0||n>=N) continue; a+=hr[k]*sym.re[n]-hi[k]*sym.im[n]; b+=hr[k]*sym.im[n]+hi[k]*sym.re[n]; } rr[m]=a+sd*gauss(); ri[m]=b+(md.m===0?0:sd*gauss()); }
+    const yr=new Float64Array(N), yi=new Float64Array(N);
+    if(eq){
+      const {w,n,g}=eq;
+      for(let q=0;q<N;q++){ let a=0,b=0; const base=q+D; for(let j=0;j<n;j++){ const m=base-j; if(m<0||m>=M) continue; a+=w.xr[j]*rr[m]+w.xi[j]*ri[m]; b+=w.xr[j]*ri[m]-w.xi[j]*rr[m]; } yr[q]=a/g; yi[q]=b/g; }
+    } else {
+      const d=hr[kmax]*hr[kmax]+hi[kmax]*hi[kmax];
+      for(let q=0;q<N;q++){ const a=rr[q+kmax], b=ri[q+kmax]; yr[q]=(a*hr[kmax]+b*hi[kmax])/d; yi[q]=(b*hr[kmax]-a*hi[kmax])/d; }
+    }
+    if(md.m===0) yi.fill(0);
+    const hb=new Uint8Array(bits.length); for(let q=0;q<N;q++) demap(yr[q],yi[q],T,hb,q*md.bps);
+    return {sym, yr, yi, hb, N};
+  };
+  // uncoded
+  const nb=Ns*md.bps, bits=new Uint8Array(nb); for(let i=0;i<nb;i++) bits[i]=Math.random()<.5?1:0;
+  const U=runStream(bits);
+  let eu=0, cnt=0, evm=0; const lo=30*md.bps, hiB=nb-30*md.bps;
+  for(let i=lo;i<hiB;i++){ eu+=bits[i]!==U.hb[i]; cnt++; }
+  for(let q=30;q<U.N-30;q++){ evm+=(U.yr[q]-U.sym.re[q])**2+(U.yi[q]-U.sym.im[q])**2; }
+  evm=Math.sqrt(evm/(U.N-60));
+  // coded (7,5) r=1/2
+  const nInfo=nb/2-2, info=new Uint8Array(nInfo); for(let i=0;i<nInfo;i++) info[i]=Math.random()<.5?1:0;
+  const C=runStream(convEnc(info)), dec=viterbi(C.hb,nInfo);
+  let ec=0,cc=0; for(let i=40;i<nInfo-40;i++){ ec+=dec[i]!==info[i]; cc++; }
+  dspRes={pts:{re:U.yr.slice(30,1330), im:U.yi.slice(30,1330)}, berU:eu/cnt, berC:ec/cc, nU:cnt, nC:cc, evm, mer:-20*log10(evm),
+    taps:ch, eq, isi:S.M.tauRms*S.rs, T};
+}
+function erfc(x){ const z=Math.abs(x), t=1/(1+0.5*z); const r=t*Math.exp(-z*z-1.26551223+t*(1.00002368+t*(0.37409196+t*(0.09678418+t*(-0.18628806+t*(0.27886807+t*(-1.13520398+t*(1.48851587+t*(-0.82215223+t*0.17087277))))))))); return x>=0?r:2-r; }
+const Qf = x => 0.5*erfc(x/Math.SQRT2);
+function berTheory(mod, gdb){ const g=db2lin(gdb), md=MODS[mod]; if(md.m===0) return Qf(Math.sqrt(2*g)); const M=md.M; return Math.min(0.5,(4/log10(M)*log10(2))*(1-1/Math.sqrt(M))*Qf(Math.sqrt(3*g/(M-1)))); }
+
+/* =====================================================================
+   7. 2D CHART TOOLKIT
+   ===================================================================== */
+function prep(cv){
+  const dpr=Math.min(devicePixelRatio||1,2), w=cv.clientWidth, h=cv.clientHeight;
+  if(!w||!h) return null;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,h); g.direction='ltr'; return {g,w,h};
+}
+function niceStep(span,n){ const raw=span/n, p=Math.pow(10,Math.floor(log10(raw))), f=raw/p; return (f<1.5?1:f<3?2:f<7?5:10)*p; }
+function axes(c,o){
+  const {g,w,h}=c, L=o.L??46, R=o.R??12, T=o.T??12, B=o.B??28, pw=w-L-R, ph=h-T-B;
+  const fx=v=>L+(v-o.x0)/(o.x1-o.x0)*pw;
+  const fy=o.logy ? v=>T+(1-(log10(Math.max(v,1e-12))-log10(o.y0))/(log10(o.y1)-log10(o.y0)))*ph : v=>T+(1-(v-o.y0)/(o.y1-o.y0))*ph;
+  g.font='10px "IBM Plex Mono", monospace'; g.lineWidth=1;
+  const xs=niceStep(o.x1-o.x0,o.nx??6);
+  for(let v=Math.ceil(o.x0/xs)*xs; v<=o.x1+1e-9; v+=xs){ const x=fx(v); g.strokeStyle=COL.line; g.beginPath(); g.moveTo(x,T); g.lineTo(x,T+ph); g.stroke(); g.fillStyle=COL.dim; g.textAlign='center'; g.fillText(o.fx?o.fx(v):+v.toFixed(6),x,T+ph+14); }
+  if(o.logy){ for(let e=Math.ceil(log10(o.y0)); e<=log10(o.y1); e++){ const y=fy(Math.pow(10,e)); g.strokeStyle=COL.line; g.beginPath(); g.moveTo(L,y); g.lineTo(L+pw,y); g.stroke(); g.fillStyle=COL.dim; g.textAlign='right'; g.fillText('1e'+e,L-5,y+3); } }
+  else{ const ys=niceStep(o.y1-o.y0,o.ny??5); for(let v=Math.ceil(o.y0/ys)*ys; v<=o.y1+1e-9; v+=ys){ const y=fy(v); g.strokeStyle=COL.line; g.beginPath(); g.moveTo(L,y); g.lineTo(L+pw,y); g.stroke(); g.fillStyle=COL.dim; g.textAlign='right'; g.fillText(o.fy?o.fy(v):+v.toFixed(6),L-5,y+3); } }
+  g.strokeStyle=COL.line2; g.strokeRect(L+.5,T+.5,pw,ph);
+  if(o.xl){ g.fillStyle=COL.muted; g.textAlign='right'; g.fillText(o.xl,L+pw,T+ph+25); }
+  return {fx,fy,L,R,T,B,pw,ph};
+}
+function txt(g,s,x,y,col,align='left',font='10px "IBM Plex Mono", monospace'){ g.font=font; g.fillStyle=col; g.textAlign=align; g.fillText(s,x,y); }
+const tile=(lab,val,unit='')=>`<div class="tile"><span>${lab}</span><b>${val}<small>${unit}</small></b></div>`;
+const fmtT = s => s<1e-6 ? fmt(s*1e9,1)+' ns' : s<1e-3 ? fmt(s*1e6,2)+' µs' : fmt(s*1e3,2)+' ms';
+const fmtHz = f => !isFinite(f)?'∞':f>=1e6?fmt(f/1e6,2)+' MHz':f>=1e3?fmt(f/1e3,1)+' kHz':fmt(f,1)+' Hz';
+
+/* =====================================================================
+   8. ANALYZER PANES
+   ===================================================================== */
+function drawBudget(){
+  const M=S.M, P=S.cur.paths[0]; if(!P) return;
+  const fspl=20*log10(4*Math.PI*P.len/M.lam);
+  const steps=[['Pt',S.pt],['+Gt',S.gt],['+Gr',S.gr]];
+  if(P.type==='sc'){ steps.push(['−Bistatic', -(lin2db(db2lin(S.pt+S.gt+S.gr)) - P.P - P.pen)]); }
+  else steps.push(['−FSPL(path)',-fspl]);
+  if(P.refl>0.01) steps.push(['−Γ refl',-P.refl]);
+  if(P.diffJ>0.01) steps.push(['−J(v) diff',-P.diffJ]);
+  if(P.pen>0.01) steps.push(['−Penetration',-P.pen]);
+  const rows=[]; let cur=0; steps.forEach(([l,v])=>{ rows.push({l,a:cur,b:cur+v}); cur+=v; });
+  rows.push({l:'Strongest path',a:0,b:P.P,tot:true,col:TYPES[P.type].c});
+  rows.push({l:'Σ coherent',a:0,b:M.Pcoh,tot:true,col:COL.good});
+  rows.push({l:'Σ local mean',a:0,b:M.Pinc,tot:true,col:COL.signal});
+  rows.push({l:'FSPL-only (lecture)',a:0,b:M.Pfspl,tot:true,col:COL.violet});
+  const c=prep($('cvBudget')); if(!c) return;
+  const vals=rows.flatMap(r=>[r.a,r.b]).concat([S.sens]); const x0=Math.floor((Math.min(...vals)-8)/10)*10, x1=Math.ceil((Math.max(...vals)+4)/10)*10;
+  const L=112, rh=(c.h-34)/rows.length, ax=axes(c,{x0,x1,y0:0,y1:1,L,T:8,B:24,ny:1,fy:()=>'' ,xl:'dBm'});
+  rows.forEach((r,i)=>{
+    const y=8+i*rh+rh*0.2, hh=rh*0.6, xa=ax.fx(Math.min(r.a,r.b)), xb=ax.fx(Math.max(r.a,r.b));
+    c.g.fillStyle = r.tot ? r.col : (r.b>=r.a?COL.good:COL.bad); c.g.globalAlpha=r.tot?.85:.7;
+    c.g.fillRect(xa,y,Math.max(1.5,xb-xa),hh); c.g.globalAlpha=1;
+    txt(c.g,r.l,L-6,y+hh*0.75,r.tot?COL.fg:COL.muted,'right');
+    txt(c.g,fmt(r.b-(r.tot?0:r.a),1)+(r.tot?' dBm':' dB'),xb+4,y+hh*0.75,COL.fg,'left');
+  });
+  const xs=ax.fx(S.sens); c.g.strokeStyle=COL.bad; c.g.setLineDash([4,3]); c.g.beginPath(); c.g.moveTo(xs,8); c.g.lineTo(xs,c.h-24); c.g.stroke(); c.g.setLineDash([]);
+  txt(c.g,'Psens',xs+3,c.h-27,COL.bad);
+  const margin=M.Pcoh-S.sens;
+  $('budTiles').innerHTML = tile('القدرة المستقبَلة (متماسكة)',fmt(M.Pcoh,1),'dBm')+tile('المتوسط المحلي',fmt(M.Pinc,1),'dBm')+tile('هامش الوصلة',fsign(margin,1),'dB')
+    +tile('تنبؤ FSPL فقط',fmt(M.Pfspl,1),'dBm')+tile('خطأ نموذج FSPL',fsign(M.Pfspl-M.Pinc,1),'dB')+tile('عمق الخفوت اللحظي',fsign(M.Pcoh-M.Pinc,1),'dB');
+  const fM=S.f/1e6, dk=M.d/1000;
+  $('budMath').innerHTML = `<span class="c">// Lecture model — Slides 09–11 (ITU-R P.525)</span>
+<span>L<sub>fs</sub> = 32.44 + 20·log10(<span class="s">${fmt(fM,0)}</span> MHz) + 20·log10(<span class="s">${fmt(dk,4)}</span> km)</span>
+<span>L<sub>fs</sub> = 32.44 + ${fmt(20*log10(fM),2)} ${dk<1?'−':'+'} ${fmt(Math.abs(20*log10(dk)),2)} = <span class="h">${fmt(M.FSPL,2)} dB</span></span>
+<span>P<sub>rx</sub> = ${S.pt} + ${S.gt} + ${S.gr} − ${fmt(M.FSPL,2)} = <span class="h">${fmt(M.Pfspl,2)} dBm</span></span>
+<span class="c">// Ray tracer — phasor sum of ${M.n} paths</span>
+<span>E = Σ a<sub>i</sub>·Γ<sub>i</sub>·10<sup>−L<sub>pen,i</sub>/20</sup>·e<sup>−jkd<sub>i</sub></sup> → |E|² = <span class="h">${fmt(M.Pcoh,2)} dBm</span></span>
+<span>Σ|a<sub>i</sub>|² (local mean) = <span class="s">${fmt(M.Pinc,2)} dBm</span>   margin = ${fsign(margin,2)} dB</span>`;
+}
+
+function drawSinr(){
+  const M=S.M;
+  $('sinrTiles').innerHTML = tile('S (متماسكة)',fmt(M.Pcoh,1),'dBm')+tile('I',S.intOn&&M.Imw>0?fmt(M.I,1):'—','dBm')+tile('N = kTB·NF',fmt(M.N,1),'dBm')
+   +tile('SNR',fmt(M.SNR,1),'dB')+tile('SINR',fmt(M.SINR,1),'dB')+tile('سعة شانون',fmt(M.cap/1e6,1),'Mb/s');
+  const c=prep($('cvSinr')); if(c){
+    const items=[['S',M.Pcoh,COL.good],['I',M.Imw>0?M.I:null,COL.bad],['N',M.N,COL.signal],['I+N',lin2db(M.Imw+M.Nmw),COL.warn]];
+    const x0=Math.floor((Math.min(M.N,M.Pcoh)-15)/10)*10, x1=Math.ceil((Math.max(M.Pcoh,M.N)+5)/10)*10;
+    const ax=axes(c,{x0,x1,y0:0,y1:1,L:46,T:8,B:24,ny:1,fy:()=>'',xl:'dBm'}), rh=(c.h-32)/items.length;
+    items.forEach(([l,v,col],i)=>{ const y=8+i*rh+rh*.22, hh=rh*.56; txt(c.g,l,40,y+hh*.75,COL.muted,'right');
+      if(v===null){ txt(c.g,'off',ax.fx(x0)+6,y+hh*.75,COL.dim); return; }
+      const xb=ax.fx(clamp(v,x0,x1)); c.g.fillStyle=col; c.g.globalAlpha=.8; c.g.fillRect(ax.fx(x0),y,xb-ax.fx(x0),hh); c.g.globalAlpha=1; txt(c.g,fmt(v,1),xb+4,y+hh*.75,COL.fg); });
+    const ys=8+0*rh+rh*.5; const xa=ax.fx(lin2db(M.Imw+M.Nmw)), xs=ax.fx(M.Pcoh);
+    c.g.strokeStyle=COL.accent; c.g.beginPath(); c.g.moveTo(xa,c.h-30); c.g.lineTo(xs,c.h-30); c.g.stroke();
+    txt(c.g,'SINR '+fmt(M.SINR,1)+' dB',(xa+xs)/2,c.h-33,COL.accent,'center');
+  }
+  const Smw=Math.pow(10,M.Pcoh/10);
+  const sci = v => v.toExponential(3);
+  $('sinrMath').innerHTML = `<span class="c">// Golden rule — Slide 18: add powers in mW, then convert</span>
+<span>N = −174 + 10·log10(${fmt(S.bw/1e6,0)}e6) + ${S.nf} = <span class="s">${fmt(M.N,2)} dBm</span> = ${sci(M.Nmw)} mW</span>
+<span>I = ${M.Imw>0?fmt(M.I,2)+' dBm = '+sci(M.Imw)+' mW':'0 mW'}${S.intOn&&S.ich!=='co'?' (after ACIR)':''}</span>
+<span>I + N = ${sci(M.Imw+M.Nmw)} mW  → ${fmt(lin2db(M.Imw+M.Nmw),2)} dBm</span>
+<span>SINR = ${sci(Smw)} / ${sci(M.Imw+M.Nmw)} = ${sci(Smw/(M.Imw+M.Nmw))} → <span class="h">${fmt(M.SINR,2)} dB</span></span>
+<span class="c">// wrong way: 10log(S) − (I_dB + N_dB) = ${fmt(M.Pcoh-(M.Imw>0?M.I+M.N:M.N),2)} dB ✗</span>
+<span>C = B·log2(1+SINR) = ${fmt(S.bw/1e6,0)}e6 · ${fmt(Math.log2(1+db2lin(M.SINR)),3)} = <span class="h">${fmt(M.cap/1e6,2)} Mb/s</span></span>`;
+  $('mcsTbl').innerHTML = '<tr><th>MCS</th><th>التعديل</th><th>الترميز</th><th>عتبة SINR</th><th>المعدل (Mb/s)</th></tr>'+
+    MCS.map(m=>`<tr class="${M.mcs&&M.mcs.i===m.i?'hl':''}"><td class="n">${m.i}</td><td>${m.m}</td><td class="n">${m.r}</td><td class="n">≥ ${m.th} dB</td><td class="n">${m.rate}</td></tr>`).join('')
+    + (M.mcs?'':'<tr class="hl"><td colspan="5">SINR أقل من عتبة MCS0 — الوصلة منقطعة</td></tr>');
+}
+
+function drawMultipath(){
+  const M=S.M, P=S.cur.paths, maxP=P[0].P;
+  let c=prep($('cvPdp'));
+  if(c){
+    const tmax=Math.max(20e-9,...P.map(p=>p.tex))*1.12;
+    const ax=axes(c,{x0:0,x1:tmax*1e9,y0:Math.floor(maxP-55),y1:Math.ceil(maxP+4),xl:'excess delay τ (ns)',fy:v=>v.toFixed(0)});
+    [...P].reverse().forEach(p=>{ const x=ax.fx(p.tex*1e9), y=ax.fy(p.P); c.g.strokeStyle=TYPES[p.type].c; c.g.lineWidth=2; c.g.beginPath(); c.g.moveTo(x,ax.fy(maxP-55)); c.g.lineTo(x,y); c.g.stroke(); c.g.fillStyle=TYPES[p.type].c; c.g.beginPath(); c.g.arc(x,y,3,0,7); c.g.fill(); });
+    const xm=ax.fx(M.tauMean*1e9); c.g.strokeStyle=COL.accent; c.g.setLineDash([4,3]); c.g.lineWidth=1; c.g.beginPath(); c.g.moveTo(xm,ax.T); c.g.lineTo(xm,ax.T+ax.ph); c.g.stroke(); c.g.setLineDash([]);
+    const yb=ax.T+10, xa=ax.fx(Math.max(0,M.tauMean-M.tauRms)*1e9), xb=ax.fx((M.tauMean+M.tauRms)*1e9);
+    c.g.strokeStyle=COL.accent; c.g.beginPath(); c.g.moveTo(xa,yb); c.g.lineTo(xb,yb); c.g.moveTo(xa,yb-4); c.g.lineTo(xa,yb+4); c.g.moveTo(xb,yb-4); c.g.lineTo(xb,yb+4); c.g.stroke();
+    txt(c.g,'τ̄ ± στ',xb+4,yb+3,COL.accent);
+    const Ts=1/S.rs; if(Ts*1e9<tmax*1e9){ const xt=ax.fx(Ts*1e9); c.g.strokeStyle=COL.bad; c.g.setLineDash([2,3]); c.g.beginPath(); c.g.moveTo(xt,ax.T); c.g.lineTo(xt,ax.T+ax.ph); c.g.stroke(); c.g.setLineDash([]); txt(c.g,'Ts',xt+3,ax.T+ax.ph-4,COL.bad); }
+  }
+  c=prep($('cvHf'));
+  if(c){
+    const B=S.bw, N=320, arr=[]; let mean=0;
+    for(let i=0;i<N;i++){ const df=-B/2+B*i/(N-1); let r=0,im=0; for(const p of P){ const ph=p.ph0-2*Math.PI*(S.f+df)*p.len/C0; r+=p.amp*Math.cos(ph); im+=p.amp*Math.sin(ph);} const v=r*r+im*im; arr.push(v); mean+=v; }
+    mean/=N;
+    const ax=axes(c,{x0:-B/2e6,x1:B/2e6,y0:-30,y1:10,xl:'Δf around fc (MHz)',fy:v=>v.toFixed(0)});
+    c.g.beginPath(); arr.forEach((v,i)=>{ const x=ax.fx((-B/2+B*i/(N-1))/1e6), y=ax.fy(clamp(lin2db(v/mean),-30,10)); i?c.g.lineTo(x,y):c.g.moveTo(x,y); });
+    c.g.strokeStyle=COL.signal; c.g.lineWidth=1.6; c.g.stroke();
+    c.g.lineTo(ax.fx(B/2e6),ax.fy(-30)); c.g.lineTo(ax.fx(-B/2e6),ax.fy(-30)); c.g.closePath(); c.g.fillStyle='rgba(98,210,255,0.08)'; c.g.fill();
+    if(isFinite(M.Bc)&&M.Bc<B){ const w=M.Bc/1e6, x0=ax.fx(-w/2), x1=ax.fx(w/2), y=ax.T+8; c.g.strokeStyle=COL.accent; c.g.beginPath(); c.g.moveTo(x0,y); c.g.lineTo(x1,y); c.g.stroke(); txt(c.g,'Bc',x1+4,y+3,COL.accent); }
+    else txt(c.g,'Bc > B → flat fading',ax.L+8,ax.T+14,COL.good);
+  }
+  const sel = M.tauRms*S.rs>0.1;
+  $('mpTiles').innerHTML = tile('متوسط التأخير τ̄',fmtT(M.tauMean))+tile('انتشار التأخير στ',fmtT(M.tauRms))+tile('عرض التماسك Bc≈1/5στ',fmtHz(M.Bc))
+    +tile('στ / Ts',fmt(M.tauRms*S.rs,3))+tile('نوع الخفوت',sel?'انتقائي ترددياً':'مسطّح')+tile('مكافئ المسافة τ·c',fmt(M.tauRms*C0,1),'m');
+  $('mpCount').textContent = P.length+' مساراً';
+  $('pathTbl').innerHTML='<tr><th>#</th><th>النوع</th><th>التفاعلات</th><th>d (m)</th><th>τ (ns)</th><th>P (dBm)</th><th>اختراق</th><th>f<sub>D</sub> (Hz)</th></tr>'+
+    P.map((p,i)=>`<tr><td class="n">${i+1}</td><td><span class="tdot" style="background:${TYPES[p.type].c}"></span>${TYPES[p.type].ar}</td><td>${p.inter.join(' → ')||'—'}${p.hits.length?' <span style="color:var(--dim)">عبر '+[...new Set(p.hits)].map(h=>MAT[S.obs[h].mat].ar).join('، ')+'</span>':''}</td><td class="n">${fmt(p.len,2)}</td><td class="n">${fmt(p.tau*1e9,1)}</td><td class="n">${fmt(p.P,1)}</td><td class="n">${p.pen>0.05?fmt(p.pen,1)+' dB':'—'}</td><td class="n">${fsign(p.fd,1)}</td></tr>`).join('');
+}
+
+function drawFade(){
+  const M=S.M;
+  let c=prep($('cvTrace'));
+  if(c){
+    if(traceBuf.length<4){ axes(c,{x0:0,x1:1,y0:M.Pinc-30,y1:M.Pinc+10,xl:'t (ms)'}); txt(c.g,'شغّل حركة المستقبل لرسم الخفوت السريع',c.w/2,c.h/2,COL.muted,'center','12px "IBM Plex Sans Arabic", sans-serif'); }
+    else{
+      const t0=traceBuf[0].t, t1=traceBuf[traceBuf.length-1].t, mean=traceBuf[traceBuf.length-1].mean;
+      const ax=axes(c,{x0:0,x1:Math.max((t1-t0)*1000,1e-3),y0:Math.floor(mean-35),y1:Math.ceil(mean+12),xl:'t (ms)',fy:v=>v.toFixed(0)});
+      const line=(key,col,w,alpha)=>{ c.g.beginPath(); traceBuf.forEach((s,i)=>{ const x=ax.fx((s.t-t0)*1000), y=ax.fy(clamp(s[key],mean-35,mean+12)); i?c.g.lineTo(x,y):c.g.moveTo(x,y); }); c.g.strokeStyle=col; c.g.lineWidth=w; c.g.globalAlpha=alpha; c.g.stroke(); c.g.globalAlpha=1; };
+      line('b',COL.violet,1,.55); line('a',COL.signal,1.4,1); line('mrc',COL.good,1.6,.95);
+      const ym=ax.fy(mean); c.g.strokeStyle=COL.accent; c.g.setLineDash([4,3]); c.g.beginPath(); c.g.moveTo(ax.L,ym); c.g.lineTo(ax.L+ax.pw,ym); c.g.stroke();
+      if(S.sens>mean-35){ const ys=ax.fy(S.sens); c.g.strokeStyle=COL.bad; c.g.beginPath(); c.g.moveTo(ax.L,ys); c.g.lineTo(ax.L+ax.pw,ys); c.g.stroke(); txt(c.g,'Psens',ax.L+4,ys-3,COL.bad); }
+      c.g.setLineDash([]);
+      txt(c.g,'ant1',ax.L+ax.pw-110,ax.T+12,COL.signal); txt(c.g,'ant2 (λ/2)',ax.L+ax.pw-80,ax.T+12,COL.violet); txt(c.g,'MRC',ax.L+ax.pw-28,ax.T+12,COL.good);
+    }
+  }
+  let minA=Infinity,minM=Infinity, outA=0, outM=0; traceBuf.forEach(s=>{ minA=Math.min(minA,s.a-s.mean); minM=Math.min(minM,s.mrc-3-s.mean); if(s.a<S.sens) outA++; if(s.mrc-3<S.sens) outM++; });
+  const nB=traceBuf.length||1;
+  $('fadeTiles').innerHTML = tile('f<sub>D,max</sub> = v/λ',fmtHz(M.fDmax))+tile('زمن التماسك T<sub>c</sub>',fmtT(M.Tc))+tile('مسافة λ/2',fmt(M.lam*50,1),'cm')
+    +tile('أعمق خفوت (هوائي واحد)',isFinite(minA)?fmt(minA,1):'—','dB')+tile('أعمق خفوت بعد MRC',isFinite(minM)?fmt(minM,1):'—','dB')+tile('احتمال الانقطاع 1 → MRC',traceBuf.length?fmt(100*outA/nB,1)+'→'+fmt(100*outM/nB,1):'—','%');
+  c=prep($('cvDop'));
+  if(c){
+    const fd=Math.max(M.fDmax,1), P=S.cur.paths, maxP=P[0].P;
+    const ax=axes(c,{x0:-fd*1.15,x1:fd*1.15,y0:maxP-50,y1:maxP+4,xl:'Doppler shift (Hz)',fy:v=>v.toFixed(0),fx:v=>Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':(+v.toFixed(1))});
+    c.g.beginPath(); for(let i=1;i<200;i++){ const f=-fd+2*fd*i/200, s=1/Math.sqrt(1-(f/fd)**2); const y=ax.fy(maxP-38+10*log10(s)); i>1?c.g.lineTo(ax.fx(f),y):c.g.moveTo(ax.fx(f),y); }
+    c.g.strokeStyle=COL.dim; c.g.lineWidth=1; c.g.setLineDash([3,3]); c.g.stroke(); c.g.setLineDash([]);
+    txt(c.g,'Jakes U-shape (isotropic)',ax.L+6,ax.T+12,COL.dim);
+    [...P].reverse().forEach(p=>{ const x=ax.fx(p.fd), y=ax.fy(p.P); c.g.strokeStyle=TYPES[p.type].c; c.g.lineWidth=2; c.g.beginPath(); c.g.moveTo(x,ax.fy(maxP-50)); c.g.lineTo(x,y); c.g.stroke(); });
+    [-fd,fd].forEach(f=>{ const x=ax.fx(f); c.g.strokeStyle=COL.accent; c.g.beginPath(); c.g.moveTo(x,ax.T); c.g.lineTo(x,ax.T+ax.ph); c.g.stroke(); });
+  }
+  const P0=S.cur.paths[0];
+  $('dopMath').innerHTML = `<span class="c">// Slide 16 — Doppler per path: f_D,i = (v⃗ · û_i) / λ</span>
+<span>f_D,max = v·f/c = ${fmt(S.v,1)} × ${fmt(S.f/1e9,3)}e9 / 3e8 = <span class="h">${fmtHz(M.fDmax)}</span></span>
+<span>strongest path (${P0.type}): f_D = <span class="s">${fsign(P0.fd,2)} Hz</span></span>
+<span>T_c ≈ 0.423 / f_D,max = <span class="h">${fmtT(M.Tc)}</span>  (symbol Ts = ${fmtT(1/S.rs)}${1/S.rs<M.Tc?' ≪ Tc → slow fading':' → fast fading'})</span>`;
+}
+
+function drawDSP(force){
+  if(!S.cur||!S.cur.paths.length) return;
+  if(force||!dspRes) runDSP();
+  const R=dspRes, M=S.M; if(!R) return;
+  let c=prep($('cvConst'));
+  if(c){
+    const lim=R.T.md.m===0?1.8:1.6, sz=Math.min(c.w,c.h)-16, ox=(c.w-sz)/2, oy=(c.h-sz)/2, f=v=>sz/2+v/lim*sz/2;
+    c.g.strokeStyle=COL.line; c.g.beginPath(); c.g.moveTo(ox,oy+sz/2); c.g.lineTo(ox+sz,oy+sz/2); c.g.moveTo(ox+sz/2,oy); c.g.lineTo(ox+sz/2,oy+sz); c.g.stroke();
+    c.g.strokeStyle=COL.line2; c.g.strokeRect(ox+.5,oy+.5,sz,sz);
+    c.g.fillStyle=COL.signal; c.g.globalAlpha=.45;
+    for(let i=0;i<R.pts.re.length;i++){ const x=ox+f(clamp(R.pts.re[i],-lim,lim)), y=oy+sz-f(clamp(R.pts.im[i],-lim,lim)); c.g.fillRect(x-1,y-1,2,2); }
+    c.g.globalAlpha=1;
+    const {lv,sc}=R.T; c.g.strokeStyle=COL.accent; c.g.lineWidth=1.2;
+    const ideal = R.T.md.m===0 ? [[-1,0],[1,0]] : lv.flatMap(a=>lv.map(b=>[a/sc,b/sc]));
+    ideal.forEach(([a,b])=>{ c.g.beginPath(); c.g.arc(ox+f(a),oy+sz-f(b),3.2,0,7); c.g.stroke(); });
+    txt(c.g,'I',ox+sz-8,oy+sz/2-4,COL.dim); txt(c.g,'Q',ox+sz/2+4,oy+10,COL.dim);
+  }
+  c=prep($('cvTaps'));
+  if(c){
+    const {hr,hi,K,pre}=R.taps; let mx=0; const mag=[]; for(let k=0;k<K;k++){ const v=Math.hypot(hr[k],hi[k]); mag.push(v); mx=Math.max(mx,v); }
+    const ax=axes(c,{x0:-pre-0.5,x1:K-pre-0.5,y0:0,y1:mx*1.15||1,L:36,xl:'k (·Ts)',fy:v=>v.toFixed(2),nx:5});
+    mag.forEach((v,k)=>{ const x=ax.fx(k-pre); c.g.strokeStyle=k===R.taps.kmax?COL.accent:COL.signal; c.g.lineWidth=2; c.g.beginPath(); c.g.moveTo(x,ax.fy(0)); c.g.lineTo(x,ax.fy(v)); c.g.stroke(); c.g.fillStyle=c.g.strokeStyle; c.g.beginPath(); c.g.arc(x,ax.fy(v),2.5,0,7); c.g.fill(); });
+    txt(c.g,'ISI energy: '+fmt(100*(1-mag[R.taps.kmax]**2/mag.reduce((s,v)=>s+v*v,0)),1)+'%',ax.L+6,ax.T+12,COL.muted);
+  }
+  const floorU=1/R.nU, floorC=1/R.nC;
+  const berS=(b,fl)=>b===0?'< '+fl.toExponential(0):b.toExponential(2);
+  $('dspTiles').innerHTML = tile('EVM',fmt(100*R.evm,1),'%')+tile('MER',fmt(R.mer,1),'dB')+tile('SINR القناة',fmt(M.SINR,1),'dB')
+    +tile('BER بدون ترميز',berS(R.berU,floorU))+tile('BER بعد Viterbi',berS(R.berC,floorC))+tile('ISI = στ·Rs',fmt(R.isi,3));
+  c=prep($('cvBer'));
+  if(c){
+    const ax=axes(c,{x0:-2,x1:32,y0:1e-6,y1:0.5,logy:true,xl:'SINR / Es·N0 (dB)'});
+    ['BPSK','QPSK','16QAM','64QAM'].forEach(m=>{ c.g.beginPath(); let st=false; for(let s=-2;s<=32;s+=0.25){ const b=berTheory(m,s); if(b<1e-6) break; const x=ax.fx(s), y=ax.fy(b); st?c.g.lineTo(x,y):c.g.moveTo(x,y); st=true; }
+      c.g.strokeStyle=m===S.mod?COL.accent:COL.line2; c.g.lineWidth=m===S.mod?1.8:1; c.g.stroke(); });
+    const s=clamp(M.SINR,-2,32), pu=Math.max(R.berU,1.2e-6), pc=Math.max(R.berC,1.2e-6);
+    const dot=(v,col,lab,dy)=>{ const x=ax.fx(s), y=ax.fy(v); c.g.fillStyle=col; c.g.beginPath(); c.g.arc(x,y,4.5,0,7); c.g.fill(); txt(c.g,lab,x+7,y+dy,col); };
+    dot(pu,COL.signal,'measured uncoded',-4); dot(pc,COL.good,'(7,5) Viterbi',12);
+    txt(c.g,S.mod+' theory (AWGN)',ax.L+ax.pw-6,ax.T+12,COL.accent,'right');
+  }
+}
+
+function drawMaterials(){
+  const cx=S.cx, fG=cx.fG, lam=cx.lam, sel=S.obs[S.sel], sm=sel?sel.mat:'concrete';
+  $('matF').textContent = 'f = '+fmt(fG,2)+' GHz · '+S.pol;
+  $('matTbl').innerHTML = '<tr><th>المادة</th><th>ε′</th><th>σ (S/m)</th><th>|Γ| 0°</th><th>|Γ| 60° TE/TM</th><th>θ<sub>B</sub></th><th>فقد الاختراق</th><th>ρ<sub>s</sub> 45°</th></tr>'+
+    MAT_ORDER.map(k=>{
+      const m=MAT[k], e=cx.em[k], g0=cabs(fresnel(e.eta,1,'TE')), gte=cabs(fresnel(e.eta,0.5,'TE')), gtm=cabs(fresnel(e.eta,0.5,'TM'));
+      const o=S.obs.find(q=>q.mat===k);
+      let pen;
+      if(m.kind==='veg') pen=fmt(0.45*Math.pow(fG,0.284)*(o?o.s.x:4),1)+' (Weiss.)';
+      else if(m.kind==='body') pen=fmt(4*Math.sqrt(fG),1)+' (emp.)';
+      else { const t=o?o.t:0.1, L=(o&&o.mode==='hollow'?2:1)*(e.iface+e.alpha*t); pen=L>200?'> 200':fmt(L,1); }
+      const thB = k==='metal'?'—':fmt(Math.atan(Math.sqrt(e.er))*180/Math.PI,1)+'°';
+      return `<tr class="click ${k===sm?'hl':''}" data-m="${k}"><td><span class="tdot" style="background:#${m.col.toString(16).padStart(6,'0')}"></span>${m.ar} <span style="color:var(--dim);font-size:10px">${m.en}</span></td><td class="n">${fmt(e.er,2)}</td><td class="n">${e.sig>1e3?'1e7':e.sig.toFixed(4)}</td><td class="n">${g0.toFixed(3)}</td><td class="n">${gte.toFixed(2)} / ${gtm.toFixed(2)}</td><td class="n">${thB}</td><td class="n">${pen} dB</td><td class="n">${roughness(m.rough,Math.SQRT1_2,lam).toFixed(3)}</td></tr>`;
+    }).join('');
+  $('matTbl').querySelectorAll('tr[data-m]').forEach(tr=>tr.onclick=()=>{ const i=S.obs.findIndex(o=>o.mat===tr.dataset.m); if(i>=0){ S.sel=i; renderObsList(); renderEditor(); syncObstacles(); drawMaterials(); } });
+  const m=MAT[sm], e=cx.em[sm];
+  $('fresTitle').textContent = m.ar+' · '+m.en;
+  const c=prep($('cvFres'));
+  if(c){
+    const ax=axes(c,{x0:0,x1:90,y0:0,y1:1,xl:'incidence angle θi (deg)',fy:v=>v.toFixed(1)});
+    const r=v=>roughness(m.rough,Math.cos(v*Math.PI/180),lam);
+    [['TE',COL.signal,[]],['TM',COL.accent,[5,3]]].forEach(([pol,col,dash])=>{
+      c.g.beginPath(); for(let a=0;a<=89.5;a+=0.5){ const g=cabs(fresnel(e.eta,Math.cos(a*Math.PI/180),pol)); const x=ax.fx(a), y=ax.fy(g); a?c.g.lineTo(x,y):c.g.moveTo(x,y); }
+      c.g.strokeStyle=col; c.g.lineWidth=1.8; c.g.setLineDash(dash); c.g.stroke();
+      c.g.beginPath(); for(let a=0;a<=89.5;a+=0.5){ const g=cabs(fresnel(e.eta,Math.cos(a*Math.PI/180),pol))*r(a); const x=ax.fx(a), y=ax.fy(g); a?c.g.lineTo(x,y):c.g.moveTo(x,y); }
+      c.g.lineWidth=1; c.g.globalAlpha=.45; c.g.stroke(); c.g.globalAlpha=1; c.g.setLineDash([]);
+    });
+    txt(c.g,'TE ⟂',ax.L+ax.pw-70,ax.T+14,COL.signal); txt(c.g,'TM ∥',ax.L+ax.pw-30,ax.T+14,COL.accent); txt(c.g,'faint = × roughness ρs',ax.L+8,ax.T+14,COL.dim);
+    S.cur.paths.forEach(p=>p.ints.forEach(it=>{ if(it.mat!==sm) return; const x=ax.fx(it.ang), y=ax.fy(it.g); c.g.fillStyle=COL.good; c.g.beginPath(); c.g.arc(x,y,4,0,7); c.g.fill(); }));
+  }
+  const g45=fresnel(e.eta,Math.SQRT1_2,S.pol);
+  $('matMath').innerHTML = `<span class="c">// ITU-R P.2040: ε′ = a·f^b, σ = c·f^d ; η = ε′ − j·17.98·σ/f</span>
+<span>η = ${fmt(e.er,3)} − j${fmt(-e.eta.im,4)}</span>
+<span>Γ_TE = (cosθ − √(η − sin²θ)) / (cosθ + √(η − sin²θ))</span>
+<span>Γ_TM = (η·cosθ − √(η − sin²θ)) / (η·cosθ + √(η − sin²θ))</span>
+<span>θ = 45°, ${S.pol}: |Γ| = <span class="h">${cabs(g45).toFixed(3)}</span> ∠${fmt(Math.atan2(g45.im,g45.re)*180/Math.PI,1)}° · ρs = exp(−8(πσh cosθ/λ)²) = ${roughness(m.rough,Math.SQRT1_2,lam).toFixed(3)}</span>
+<span>α = 8.686·k0·|Im√η| = <span class="s">${fmt(e.alpha,1)} dB/m</span>   (green dots = live hits on this material)</span>`;
+}
+
+function drawMitigation(){
+  const M=S.M, fade=M.Pcoh-M.Pinc, isi=M.tauRms*S.rs, noiseLim=M.Nmw>=M.Imw, intLim=M.Imw>M.Nmw;
+  const div=lin2db(db2lin(M.Pcoh)+db2lin(M.P2))-3;
+  const cards=[
+    {on:fade<-6, t:'1 · خفوت عميق محلي ← تنوع الهوائيات (Diversity)', p:'فرق طور هدّام بين المسارات يخفض القدرة تحت المتوسط. هوائي ثانٍ على بعد λ/2 يرى طوراً مستقلاً تقريباً، ودمج MRC يقلل احتمال تزامن الخفوت.',
+     ev:`fade = Pcoh − Pmean = ${fsign(fade,1)} dB · ant2 = ${fmt(M.P2,1)} dBm · MRC−3dB = ${fmt(div,1)} dBm`, tr:'الكلفة: فرع استقبال ثانٍ ومعالجة إضافية.'},
+    {on:isi>0.1, t:'2 · انتشار التأخير / ISI ← المعادلة (Equalization)', p:'عندما يتجاوز στ نحو عُشر زمن الرمز تتسرب طاقة كل رمز إلى الرموز التالية. معادل MMSE يعكس القناة جزئياً دون تضخيم الضوضاء.',
+     ev:`στ = ${fmtT(M.tauRms)} · Ts = ${fmtT(1/S.rs)} · στ/Ts = ${fmt(isi,3)}`, tr:'الكلفة: تقدير مستمر للقناة وتعقيد حسابي.'},
+    {on:noiseLim && M.SINR<15, t:'3 · أخطاء بتات بسبب الضوضاء ← ترميز القناة (Coding)', p:'القناة محدودة بالضوضاء. الترميز التلافيفي مع Viterbi يصحح الأخطاء دون رفع قدرة الإرسال.',
+     ev:`SNR = ${fmt(M.SNR,1)} dB · N = ${fmt(M.N,1)} dBm ≥ I`, tr:'الكلفة: بتات زائدة، المعدل الفعلي ينخفض إلى النصف عند r = 1/2.'},
+    {on:intLim, t:'4 · تداخل الخلايا ← التنسيق (Coordination)', p:'التداخل أعلى من الضوضاء، فرفع قدرة الإرسال لن يحسن SINR بالقدر المتوقع. الحل: إعادة تخطيط القنوات أو التنسيق بين الأبراج.',
+     ev:`I = ${M.Imw>0?fmt(M.I,1):'—'} dBm vs N = ${fmt(M.N,1)} dBm · SINR = ${fmt(M.SINR,1)} dB`, tr:'الكلفة: قرارات مشتركة على الموارد بين الخلايا.'}
+  ];
+  $('mitCards').innerHTML = cards.map(c=>`<div class="card ${c.on?'act':'ok'}"><div class="hd"><span>${c.t}</span><span class="badge">${c.on?'مطلوب الآن':'غير مطلوب'}</span></div><p>${c.p}</p><div class="ev">${c.ev}</div><p style="color:var(--dim)">${c.tr}</p></div>`).join('');
+  const c2 = M.Pcoh>-65 && M.SINR<15, err=M.Pfspl-M.Pinc;
+  $('claims').innerHTML = `
+  <div class="card ${c2?'act':'ok'}"><div class="hd"><span>الادعاء 2: إشارة قوية = اتصال جيد</span><span class="badge">${c2?'مدحوض الآن':'لا تعارض حالياً'}</span></div>
+    <p>قوة S لا تكفي. المهم هو SINR بعد جمع I وN خطياً.</p><div class="ev">S = ${fmt(M.Pcoh,1)} dBm · SINR = ${fmt(M.SINR,1)} dB · MCS = ${M.mcs?M.mcs.i+' ('+M.mcs.m+' '+M.mcs.r+')':'none'}</div></div>
+  <div class="card ${Math.abs(err)>6?'act':'ok'}"><div class="hd"><span>الادعاء 3: FSPL يكفي لتقدير التغطية</span><span class="badge">خطأ ${fsign(err,1)} dB</span></div>
+    <p>FSPL لا يرى الاختراق ولا الانعكاس ولا الحيود ولا الخفوت. فعّل الخريطة الحرارية لترى ظلال العوائق التي لا يتنبأ بها النموذج.</p>
+    <div class="ev">FSPL → ${fmt(M.Pfspl,1)} dBm · ray-traced mean → ${fmt(M.Pinc,1)} dBm · instantaneous → ${fmt(M.Pcoh,1)} dBm</div></div>`;
+}
+
+/* =====================================================================
+   9. UI WIRING
+   ===================================================================== */
+let activeTab='budget', anaDirty=true, dspDirty=true, dirty=true;
+function markDirty(heat=true){ dirty=true; anaDirty=true; dspDirty=true; if(heat) scheduleHeat(); }
+const fFromSlider = v => 0.4*Math.pow(75, v/1000);
+const sliderFromF = g => Math.round(1000*log10(g/0.4)/log10(75));
+function setFreq(g){ S.f=g*1e9; $('fr').value=sliderFromF(g); $('frO').textContent = g>=1?fmt(g,2)+' GHz':fmt(g*1000,0)+' MHz';
+  document.querySelectorAll('#bands .chip').forEach(b=>b.classList.toggle('on',Math.abs(+b.dataset.f-g)<0.02)); traceBuf.length=0; markDirty(); }
+$('fr').oninput=e=>setFreq(+fFromSlider(+e.target.value).toFixed(3));
+document.querySelectorAll('#bands .chip').forEach(b=>b.onclick=()=>setFreq(+b.dataset.f));
+[['pt','pt'],['gt','gt'],['gr','gr'],['nf','nf'],['sens','sens'],['ipt','ipt']].forEach(([id,k])=>$(id).oninput=e=>{ const v=parseFloat(e.target.value); if(isFinite(v)){ S[k]=v; markDirty(); } });
+$('bw').onchange=e=>{ S.bw=+e.target.value*1e6; markDirty(); };
+$('ground').onchange=e=>{ S.ground=e.target.value; markDirty(); };
+$('ich').onchange=e=>{ S.ich=e.target.value; markDirty(); };
+$('diff').onchange=e=>{ S.diff=e.target.checked; markDirty(); };
+$('scat').onchange=e=>{ S.scat=e.target.checked; markDirty(); };
+$('intOn').onchange=e=>{ S.intOn=e.target.checked; syncObstacles(); markDirty(); };
+$('rs').onchange=e=>{ S.rs=+e.target.value*1e6; markDirty(false); };
+function seg(id, cb){ const el=$(id); el.querySelectorAll('button').forEach(b=>b.onclick=()=>{ el.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); cb(b.dataset.v??b.dataset.p); }); }
+seg('polSeg',v=>{S.pol=v; markDirty();});
+seg('ordSeg',v=>{S.order=+v; markDirty();});
+seg('modSeg',v=>{S.mod=v; dspDirty=true; anaDirty=true;});
+seg('eqSeg',v=>{S.eq=v; dspDirty=true; anaDirty=true;});
+seg('presetSeg',p=>{ loadPreset(p); rebuildObstacles(); renderObsList(); renderEditor(); markDirty(); });
+$('vel').oninput=e=>{ S.v=+e.target.value; $('velO').textContent=fmt(S.v,1)+' m/s · '+fmt(S.v*3.6,0)+' km/h'; markDirty(false); };
+$('hdg').oninput=e=>{ S.hdg=+e.target.value; $('hdgO').textContent=S.hdg+'°'; markDirty(false); };
+$('moveBtn').onclick=()=>{ S.moving=!S.moving; $('moveBtn').classList.toggle('on',S.moving); $('moveBtn').textContent=S.moving?'■ إيقاف الحركة':'▶ تشغيل حركة المستقبل'; if(!S.moving) markDirty(); };
+const tog=(id,k,after)=>$(id).onclick=()=>{ S[k]=!S[k]; $(id).classList.toggle('on',S[k]); after&&after(); dirty=true; };
+tog('tRays','showRays'); tog('tPart','showPart'); tog('tLab','showLab',syncObstacles);
+$('tHeat').onclick=()=>{ S.heat = S.heat==='off'?'prx':S.heat==='prx'?'sinr':'off'; $('tHeat').classList.toggle('on',S.heat!=='off');
+  $('tHeat').textContent='خريطة: '+({off:'إيقاف',prx:'Prx',sinr:'SINR'})[S.heat]; $('heatLg').hidden=S.heat==='off'; if(S.heat==='off') heatMesh.visible=false; else computeHeat(); };
+$('tCam').onclick=()=>{ S.topCam=!S.topCam; $('tCam').classList.toggle('on',S.topCam); if(S.topCam){ camera.position.set(0,78,0.01); } else camera.position.set(-18,42,52); controls.target.set(0,0,0); };
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{ activeTab=b.dataset.t; document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.pane').forEach(p=>p.hidden=p.dataset.p!==activeTab); anaDirty=true; });
+
+function renderObsList(){
+  $('obsList').innerHTML = S.obs.map((o,i)=>`<div class="orow ${i===S.sel?'sel':''}" data-i="${i}"><span class="sw" style="background:#${MAT[o.mat].col.toString(16).padStart(6,'0')}"></span><span class="nm">${MAT[o.mat].ar} · ${o.name}<small>${MAT[o.mat].en}</small></span><input type="checkbox" aria-label="تفعيل" ${o.on?'checked':''}></div>`).join('');
+  $('obsList').querySelectorAll('.orow').forEach(r=>{ const i=+r.dataset.i;
+    r.onclick=e=>{ if(e.target.tagName==='INPUT') return; S.sel=i; renderObsList(); renderEditor(); syncObstacles(); anaDirty=true; };
+    r.querySelector('input').onchange=e=>{ S.obs[i].on=e.target.checked; syncObstacles(); markDirty(); }; });
+}
+function renderEditor(){
+  const o=S.obs[S.sel]; if(!o){ $('editor').innerHTML=''; return; }
+  const m=MAT[o.mat], cx=S.cx||buildCtx(), e=cx.em[o.mat];
+  const g0=cabs(fresnel(e.eta,1,'TE')), pen = m.kind==='veg'?0.45*Math.pow(cx.fG,0.284)*o.s.x : m.kind==='body'?4*Math.sqrt(cx.fG) : (o.mode==='hollow'?2:1)*(e.iface+e.alpha*o.t);
+  $('editor').innerHTML = `
+    <div class="field"><span style="color:var(--fg);font-weight:600">${o.name} · ${m.ar}</span><button class="chip" id="rotBtn" type="button">تدوير 90°</button></div>
+    <div class="field"><label for="ox">الموضع x</label><output>${fmt(o.c.x,1)} m</output></div><input type="range" id="ox" min="-32" max="32" step="0.5" value="${o.c.x}">
+    <div class="field"><label for="oz">الموضع z</label><output>${fmt(o.c.z,1)} m</output></div><input type="range" id="oz" min="-20" max="20" step="0.5" value="${o.c.z}">
+    <div class="kv">
+      <span>الأبعاد (m)</span><b>${fmt(o.s.x,2)} × ${fmt(o.s.y,1)} × ${fmt(o.s.z,2)}</b>
+      <span>ε′ / σ (S/m)</span><b>${fmt(e.er,2)} / ${e.sig>1e3?'1e7':e.sig.toFixed(4)}</b>
+      <span>|Γ| عمودي</span><b>${g0.toFixed(3)}</b>
+      <span>فقد الاختراق</span><b>${pen>200?'> 200':fmt(pen,1)} dB</b>
+      <span>خشونة σh</span><b>${(m.rough*1000).toFixed(1)} mm</b>
+      <span>النموذج</span><b>${m.kind==='veg'?'Weissberger':m.kind==='body'?'empirical':'P.2040 '+o.mode}</b>
+    </div>`;
+  $('ox').oninput=ev=>{ o.c.x=+ev.target.value; ev.target.previousElementSibling.querySelector('output').textContent=fmt(o.c.x,1)+' m'; markDirty(); };
+  $('oz').oninput=ev=>{ o.c.z=+ev.target.value; ev.target.previousElementSibling.querySelector('output').textContent=fmt(o.c.z,1)+' m'; markDirty(); };
+  $('rotBtn').onclick=()=>{ const t=o.s.x; o.s.x=o.s.z; o.s.z=t; rebuildObstacles(); renderEditor(); markDirty(); };
+}
+function renderLegend(){
+  $('legend').innerHTML = Object.entries(TYPES).map(([k,t])=>`<span><i style="background:${t.c}${k==='int'?';background:repeating-linear-gradient(90deg,'+t.c+' 0 4px,transparent 4px 7px)':''}"></i>${t.ar}</span>`).join('');
+}
+function renderHUD(){
+  const M=S.M;
+  const q = M.SINR>=25?COL.good:M.SINR>=10?COL.warn:COL.bad;
+  $('hud').innerHTML = `
+    <span>P<sub>rx</sub> لحظية</span><b class="big">${fmt(M.Pcoh,1)} dBm</b>
+    <span>متوسط محلي</span><b>${fmt(M.Pinc,1)} dBm</b>
+    <span>FSPL فقط</span><b style="color:var(--violet)">${fmt(M.Pfspl,1)} dBm</b>
+    <span>SINR</span><b class="big" style="color:${q}">${fmt(M.SINR,1)} dB</b>
+    <span>MCS / المعدل</span><b>${M.mcs?M.mcs.i+' · '+M.mcs.rate+' Mb/s':'انقطاع'}</b>
+    <span>στ · f<sub>D</sub></span><b>${fmtT(M.tauRms)} · ${fmtHz(M.fDmax)}</b>
+    <span>d(Tx→Rx)</span><b>${fmt(M.d,1)} m</b>`;
+  $('stPaths').textContent=M.n; $('stMs').textContent=fmt(M.ms,1)+' ms'; $('stLam').textContent=M.lam>=0.1?fmt(M.lam*100,1)+' cm':fmt(M.lam*1000,1)+' mm';
+}
+function drawActive(){
+  if(!S.M||!S.cur.paths.length) return;
+  if(activeTab==='budget') drawBudget();
+  else if(activeTab==='sinr') drawSinr();
+  else if(activeTab==='mp') drawMultipath();
+  else if(activeTab==='fade') drawFade();
+  else if(activeTab==='dsp'){ drawDSP(dspDirty); dspDirty=false; }
+  else if(activeTab==='mat') drawMaterials();
+  else if(activeTab==='mit') drawMitigation();
+}
+
+/* =====================================================================
+   10. MAIN LOOP
+   ===================================================================== */
+let last=performance.now(), lastAna=0, lastDsp=0;
+function loop(t){
+  const dt=Math.min(0.05,(t-last)/1000); last=t;
+  if(S.moving){ moveRx(dt); dirty=true; anaDirty=true; }
+  if(dirty){
+    evaluate(); placeMast(txG,S.tx); placeMast(rxG,S.rx); placeMast(itG,S.it); syncObstacles(); updateRays(); renderHUD(); dirty=false;
+    if(!S.moving && !drag && Math.random()<1) renderEditorLite();
+  }
+  animateFlow(t);
+  const rate = activeTab==='dsp' ? 350 : (activeTab==='fade'?60:140);
+  if(anaDirty && t-lastAna>rate){ if(activeTab==='dsp'&&S.moving) dspDirty=true; drawActive(); lastAna=t; anaDirty=S.moving; }
+  controls.update(); renderer.render(scene,camera);
+  requestAnimationFrame(loop);
+}
+let edKey='';
+function renderEditorLite(){ const o=S.obs[S.sel]; const k=o?o.idx+':'+o.c.x+':'+o.c.z+':'+S.f+':'+S.order:''; if(k!==edKey){ edKey=k; if(document.activeElement && document.activeElement.closest && document.activeElement.closest('#editor')) return; renderEditor(); } }
+
+/* boot */
+loadPreset('campus');
+rebuildObstacles(); renderObsList(); renderLegend(); setFreq(2.4);
+$('velO').textContent='1.5 m/s · 5 km/h'; syncHdg();
+resize(); evaluate(); renderEditor();
+requestAnimationFrame(loop);
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(()=>{ const sel=S.sel; rebuildObstacles(); [txG,rxG,itG].forEach((g,i)=>{ g.remove(g.userData.lab); const l=makeLabel(['المرسل Tx','المستقبل Rx','برج متداخل'][i],['Access Point','UE','Interferer'][i]); g.add(l); g.userData.lab=l; }); S.sel=sel; markDirty(false); });
+window.addEventListener('resize',()=>{ anaDirty=true; });
+</script>
+
+<a href="index.html#obstacles" style="position:fixed;bottom:14px;right:14px;z-index:99;background:#F2A93B;color:#1a1205;font:600 13px 'IBM Plex Sans Arabic',sans-serif;padding:8px 14px;border-radius:9px;text-decoration:none">← العودة إلى راصد</a>
+</body>
+</html>
