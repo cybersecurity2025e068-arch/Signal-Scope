@@ -32,12 +32,11 @@ final class Geo
     public static function taMeters(?string $tech, ?int $ta): ?float
     {
         if ($ta === null) return null;
-        return match ($tech) {
-            'LTE'  => $ta * 78.12,
-            'GSM'  => $ta * 553.85,
-            'NR'   => null, // TA في NR يعتمد على التباعد الترددي وغير موحّد في Android
-            default => null,
-        };
+        switch ($tech) {
+            case 'LTE': return $ta * 78.12;
+            case 'GSM': return $ta * 553.85;
+            default:    return null; // TA في NR يعتمد على التباعد الترددي وغير موحّد في Android
+        }
     }
 
     /** فقد المسار في الفضاء الحر (dB)، d بالمتر و f بالميغاهرتز */

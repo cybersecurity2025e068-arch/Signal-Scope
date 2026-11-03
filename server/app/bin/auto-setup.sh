@@ -15,16 +15,16 @@ cd "$APP" || exit 0
 log() { echo "[$(date '+%F %T')] $*"; }
 rand() { head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c "${1:-24}"; }
 
-# أحدث PHP 8 متاح (الأوامر تحتاج 8.1+)
+# أحدث PHP متاح لأوامر الإعداد (الكود يعمل على 7.4+)
 PHP=""
-for v in 84 83 82 81; do
+for v in 84 83 82 81 80 74; do
   [ -x "/opt/cpanel/ea-php$v/root/usr/bin/php" ] && { PHP="/opt/cpanel/ea-php$v/root/usr/bin/php"; break; }
 done
 [ -z "$PHP" ] && PHP="$(command -v php || echo /usr/local/bin/php)"
 # إعداد الاستضافة فيه session.gc_divisor=0 فيطبع PHP تحذيراً مع كل تشغيل؛ نصحّحه لأوامرنا
 PHPX=("$PHP" -d session.gc_divisor=100 -d display_errors=stderr -d error_log="$APP/php_error.log")
-if ! "$PHP" -r 'exit(PHP_VERSION_ID >= 80100 ? 0 : 1);' 2>/dev/null; then
-  log "PHP 8.1+ غير موجود ($PHP). فعّله من MultiPHP Manager ثم أعد Deploy."; exit 0
+if ! "$PHP" -r 'exit(PHP_VERSION_ID >= 70400 ? 0 : 1);' 2>/dev/null; then
+  log "PHP 7.4+ غير موجود ($PHP). فعّله من MultiPHP Manager ثم أعد Deploy."; exit 0
 fi
 jget() { "$PHP" -r '$j=json_decode(stream_get_contents(STDIN),true); $v=$j; foreach(array_slice($argv,1) as $k){$v=$v[$k]??null;} echo is_scalar($v)?$v:json_encode($v);' "$@"; }
 
@@ -56,8 +56,8 @@ if [ -x "$UAPI" ] && [ -f "$HT" ]; then
   INST="$("$UAPI" --output=json LangPHP php_get_installed_versions 2>/dev/null | "$PHP" -r '$j=json_decode(stream_get_contents(STDIN),true); $v=$j["result"]["data"]["versions"]??[]; rsort($v); echo implode(" ",$v);')"
   log "PHP للموقع: ${VH:-?} · الإصدارات المفعّلة: ${INST:-?}"
   VN="${VH//[!0-9]/}"
-  if [ -n "$VN" ] && [ "$VN" -lt 81 ]; then
-    EA=""; for v in $INST; do n="${v//[!0-9]/}"; [ -n "$n" ] && [ "$n" -ge 81 ] && { EA="$v"; break; }; done
+  if [ -n "$VN" ] && [ "$VN" -lt 74 ]; then
+    EA=""; for v in $INST; do n="${v//[!0-9]/}"; [ -n "$n" ] && [ "$n" -ge 74 ] && { EA="$v"; break; }; done
     if [ -n "$EA" ]; then
       printf '\n# signalscope-php: يفرض %s على واجهة API فقط\n<IfModule mime_module>\n  AddHandler application/x-httpd-%s .php\n</IfModule>\n' "$EA" "$EA" >> "$HT"
       if api_ok; then log "api/ يعمل على $EA"; else drop_handler; log "تعذّر تشغيل api/ على $EA فأُزيل الإعداد. اختر PHP 8.1+ للنطاق من MultiPHP Manager."; fi

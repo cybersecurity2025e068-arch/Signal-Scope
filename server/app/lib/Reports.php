@@ -209,7 +209,7 @@ final class Reports
         return ['type' => 'FeatureCollection', 'features' => $features];
     }
 
-    public static function sessionCsv(int $id): never
+    public static function sessionCsv(int $id): void
     {
         $s = self::sessionRow($id);
         header('Content-Type: text/csv; charset=utf-8');

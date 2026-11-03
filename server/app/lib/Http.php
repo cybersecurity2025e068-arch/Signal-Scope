@@ -3,15 +3,23 @@ declare(strict_types=1);
 
 final class HttpError extends Exception
 {
-    public function __construct(public int $status, string $message, public string $errCode = 'error')
+    /** @var int */
+    public $status;
+    /** @var string */
+    public $errCode;
+
+    public function __construct(int $status, string $message, string $errCode = 'error')
     {
         parent::__construct($message);
+        $this->status = $status;
+        $this->errCode = $errCode;
     }
 }
 
 final class Http
 {
-    public static function json(mixed $data, int $status = 200): never
+    /** @param mixed $data */
+    public static function json($data, int $status = 200): void
     {
         http_response_code($status);
         header('Content-Type: application/json; charset=utf-8');

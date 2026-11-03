@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-if (PHP_VERSION_ID < 80100) {
+if (PHP_VERSION_ID < 70400) {
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['error' => 'php_version', 'message' => 'يلزم PHP 8.1 أو أحدث، والإصدار الحالي ' . PHP_VERSION . '. اختر PHP 8.1+ للنطاق من cPanel ← MultiPHP Manager.']);
+    echo json_encode(['error' => 'php_version', 'message' => 'يلزم PHP 7.4 أو أحدث، والإصدار الحالي ' . PHP_VERSION . '. اختر PHP 7.4+ للنطاق من cPanel ← MultiPHP Manager.']);
     exit;
 }
 
@@ -36,7 +36,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
 $path = '/' . trim(substr($uri, strlen($base)), '/');
-if (str_starts_with($path, '/index.php')) $path = substr($path, 10) ?: '/';
+if (strpos($path, '/index.php') === 0) $path = substr($path, 10) ?: '/';
 // بديل يعمل على أي خادم: index.php?r=/v1/ping (بلا mod_rewrite ولا PATH_INFO)
 if (isset($_GET['r']) && is_string($_GET['r'])) $path = '/' . trim($_GET['r'], '/');
 

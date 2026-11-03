@@ -148,7 +148,7 @@ final class Ingest
         return ['ok' => true, 'received' => count($ack), 'inserted' => $inserted, 'ack' => $ack];
     }
 
-    private static function int(mixed $v): ?int
+    private static function int($v): ?int
     {
         if ($v === null || $v === '') return null;
         if (is_int($v)) return $v;
@@ -157,7 +157,7 @@ final class Ingest
         return null;
     }
 
-    private static function float(mixed $v): ?float
+    private static function float($v): ?float
     {
         if ($v === null || $v === '' || !is_numeric($v)) return null;
         $f = (float)$v;
@@ -174,7 +174,7 @@ final class Ingest
         return ($v === null || $v < $min || $v > $max) ? null : $v;
     }
 
-    private static function uuid(mixed $v): ?string
+    private static function uuid($v): ?string
     {
         $v = strtolower((string)$v);
         return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $v) ? $v : null;

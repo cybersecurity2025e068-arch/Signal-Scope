@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const SS_VERSION = '1.1.0';
+const SS_VERSION = '1.2.0';
 
 define('SS_APP_DIR', __DIR__);
 require SS_APP_DIR . '/lib/Http.php'; // يحوي HttpError أيضاً
