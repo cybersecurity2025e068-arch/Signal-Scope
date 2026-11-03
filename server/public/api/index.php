@@ -14,6 +14,9 @@ $candidates = [
     __DIR__ . '/../../signalscope',      // cPanel: /home/USER/signalscope
     __DIR__ . '/../../app',              // بنية المستودع: server/app
 ];
+// مجلد المنزل لمستخدم الاستضافة (يعمل مهما كان عمق مجلد الموقع)
+$home = getenv('HOME') ?: (function_exists('posix_getpwuid') ? (posix_getpwuid(posix_geteuid())['dir'] ?? '') : '');
+if ($home) $candidates[] = $home . '/signalscope';
 foreach ($candidates as $dir) {
     if ($dir && is_file($dir . '/bootstrap.php')) { require $dir . '/bootstrap.php'; break; }
 }

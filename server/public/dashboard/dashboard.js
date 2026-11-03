@@ -390,7 +390,7 @@
       if (st.error) throw new Error(st.message || st.error);
       if (!st.setup_done) showAuth(true); else if (!st.logged_in) showAuth(false); else enter();
     } catch (e) {
-      document.body.innerHTML = `<div class="auth"><div class="card authcard"><h1>تعذّر الاتصال بالخادم</h1><p class="err">${esc(e.message)}</p><p class="muted">تأكد من رفع مجلد api ومجلد signalscope، ومن وجود config.php.</p></div></div>`;
+      document.body.innerHTML = `<div class="auth"><div class="card authcard"><h1>تعذّر الاتصال بالخادم</h1><p class="err">${esc(e.message)}</p><p class="muted">افتح صفحة الفحص لمعرفة السبب: <a href="${new URL("../api/check.php", location.href).href}" target="_blank" rel="noopener">api/check.php</a></p></div></div>`;
     }
   })();
 })();
