@@ -380,7 +380,11 @@
   applyTheme();
   (async () => {
     try {
-      const st = await (await fetch(API + "v1/admin/status", { credentials: "same-origin" })).json();
+      const res = await fetch(API + "v1/admin/status", { credentials: "same-origin" });
+      const body = await res.text();
+      let st;
+      try { st = JSON.parse(body); } catch (_) { throw new Error(`HTTP ${res.status}: ${body.trim().slice(0, 300) || "رد فارغ من الخادم (غالباً خطأ PHP؛ راجع إصدار PHP وملف error_log)"}`); }
+      if (st.error) throw new Error(st.message || st.error);
       if (!st.setup_done) showAuth(true); else if (!st.logged_in) showAuth(false); else enter();
     } catch (e) {
       document.body.innerHTML = `<div class="auth"><div class="card authcard"><h1>تعذّر الاتصال بالخادم</h1><p class="err">${esc(e.message)}</p><p class="muted">تأكد من رفع مجلد api ومجلد signalscope، ومن وجود config.php.</p></div></div>`;

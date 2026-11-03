@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+if (PHP_VERSION_ID < 80100) {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => 'php_version', 'message' => 'يلزم PHP 8.1 أو أحدث، والإصدار الحالي ' . PHP_VERSION . '. اختر PHP 8.1+ للنطاق من cPanel ← MultiPHP Manager.']);
+    exit;
+}
+
 // موقع مجلد التطبيق الخاص (خارج public_html). عدّل المسار إن وضعته في مكان آخر.
 $candidates = [
     getenv('SIGNALSCOPE_APP') ?: '',

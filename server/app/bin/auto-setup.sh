@@ -28,6 +28,13 @@ UAPI="$(command -v uapi || echo /usr/bin/uapi)"
 DOMAIN=""
 [ -x "$UAPI" ] && DOMAIN="$("$UAPI" --output=json DomainInfo list_domains 2>/dev/null | jget result data main_domain)"
 
+# ---- PHP 8 لمجلد api فقط (لا يغيّر إصدار PHP لبقية الموقع) ----
+HT="$(cd ~ && pwd)/public_html/api/.htaccess"
+if [[ "$PHP" == /opt/cpanel/ea-php* ]] && [ -f "$HT" ] && ! grep -q "signalscope-php" "$HT"; then
+  EA="$(echo "$PHP" | sed -E 's#^/opt/cpanel/(ea-php[0-9]+)/.*#\1#')"
+  printf '\n# signalscope-php: يفرض %s على واجهة API\n<IfModule mime_module>\n  AddHandler application/x-httpd-%s .php\n</IfModule>\n' "$EA" "$EA" >> "$HT"
+  log "api/ يعمل الآن على $EA"
+fi
 # ---- 1) قاعدة البيانات و config.php (مرة واحدة) ----
 # config.php منسوخ من المثال ولم يُعدَّل بعد؟ نحتفظ به جانباً وننشئ واحداً صحيحاً
 if [ -f "$CFG" ] && grep -q "CHANGE_ME\|CPANELUSER" "$CFG"; then
@@ -107,4 +114,8 @@ if command -v crontab >/dev/null 2>&1; then
 else
   log "crontab غير متاح: أضف مهام cron يدوياً (README)."
 fi
+if [ -n "$DOMAIN" ] && command -v curl >/dev/null 2>&1; then
+  log "فحص: https://$DOMAIN/api/v1/ping → $(curl -s -m 15 "https://$DOMAIN/api/v1/ping" | head -c 200)"
+fi
+
 log "انتهى الإعداد"
