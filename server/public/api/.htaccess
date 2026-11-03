@@ -1,6 +1,7 @@
 Options -Indexes
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /api/
   # تمرير ترويسة Authorization إلى PHP (تحذفها بعض إعدادات cPanel)
   RewriteCond %{HTTP:Authorization} .
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

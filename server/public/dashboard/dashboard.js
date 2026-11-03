@@ -1,7 +1,8 @@
 /* لوحة راصد الإشارة — واجهة المدير (بلا مكتبات بناء؛ MapLibre من CDN) */
 (function () {
   "use strict";
-  const API = new URL("../api/", location.href).href;
+  // index.php في المسار يجعل الواجهة تعمل حتى إن لم يكن mod_rewrite مفعّلاً في الاستضافة
+  const API = new URL("../api/index.php/", location.href).href;
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const isNum = v => typeof v === "number" && isFinite(v);
