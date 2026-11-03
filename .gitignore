@@ -1,0 +1,17 @@
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+*.iml
+*.jks
+*.keystore
+
+# Server secrets
+server/app/config.php
+
+# Build output
+dist/
+
+.DS_Store

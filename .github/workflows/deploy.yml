@@ -1,0 +1,46 @@
+name: Deploy to cPanel
+
+on:
+  push:
+    branches: [main]
+    paths: ["server/**", "web/**", "tools/build-hosting.sh", ".github/workflows/deploy.yml"]
+  workflow_dispatch:
+
+concurrency: deploy-hosting
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+        run: |
+          if [ -z "$FTP_SERVER" ]; then
+            echo "::error::أضف FTP_SERVER و FTP_USERNAME و FTP_PASSWORD في Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+
+      - name: Lint PHP
+        run: find server -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Build hosting tree
+        run: tools/build-hosting.sh
+
+      # يرفع فقط الملفات المتغيرة، ولا يحذف أي ملف لم يرفعه هو (config.php والملفات الأخرى في استضافتك آمنة)
+      - name: Upload over FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: dist/hosting/
+          server-dir: ${{ secrets.FTP_SERVER_DIR || './' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            signalscope/config.php

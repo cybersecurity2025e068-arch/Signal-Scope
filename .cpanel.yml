@@ -1,0 +1,11 @@
+# بديل للنشر عبر FTPS: cPanel ← Git™ Version Control ← Pull or Deploy.
+# عدّل CPANELUSER إلى اسم حسابك في cPanel.
+---
+deployment:
+  tasks:
+    - export HOMEDIR=/home/CPANELUSER
+    - /bin/mkdir -p $HOMEDIR/public_html/api $HOMEDIR/public_html/dashboard $HOMEDIR/public_html/app $HOMEDIR/signalscope
+    - /bin/cp -R server/public/api/. $HOMEDIR/public_html/api/
+    - /bin/cp -R server/public/dashboard/. $HOMEDIR/public_html/dashboard/
+    - /bin/cp -R web/. $HOMEDIR/public_html/app/
+    - /bin/cp -R server/app/lib server/app/cron server/app/data server/app/bootstrap.php server/app/schema.sql server/app/config.example.php server/app/.htaccess $HOMEDIR/signalscope/

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>لوحة راصد الإشارة</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 20h3v-4H2zm5 0h3v-8H7zm5 0h3V8h-3zm5 0h3V4h-3z' fill='%232f7cf6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+<div id="auth" class="auth" hidden>
+  <form class="card authcard" id="authForm" autocomplete="on">
+    <h1>لوحة راصد الإشارة</h1>
+    <p class="muted" id="authHint">سجّل الدخول لمتابعة الجلسات والتقارير.</p>
+    <label class="f" id="setupRow" hidden>رمز الإعداد (setup_key من config.php)<input class="inp" id="aSetup" type="password" dir="ltr" autocomplete="off"></label>
+    <label class="f">اسم المستخدم<input class="inp" id="aUser" dir="ltr" autocomplete="username" required></label>
+    <label class="f">كلمة المرور<input class="inp" id="aPass" type="password" dir="ltr" autocomplete="current-password" required></label>
+    <button class="btn primary" id="aBtn" type="submit">دخول</button>
+    <p class="err" id="aErr" hidden></p>
+  </form>
+</div>
+
+<div id="shell" class="shell" hidden>
+  <header class="top">
+    <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20h3v-4H2zm5 0h3v-8H7zm5 0h3V8h-3zm5 0h3V4h-3z"/></svg>راصد الإشارة</div>
+    <nav class="nav" id="nav">
+      <a href="#/overview">نظرة عامة</a>
+      <a href="#/sessions">الجلسات</a>
+      <a href="#/coverage">خريطة التغطية</a>
+      <a href="#/cells">الأبراج والخلايا</a>
+      <a href="#/devices">الأجهزة</a>
+      <a href="#/settings">الإعدادات</a>
+    </nav>
+  </header>
+  <main id="view" class="view"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

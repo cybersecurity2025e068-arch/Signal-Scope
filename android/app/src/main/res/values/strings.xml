@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">راصد الإشارة</string>
+    <string name="ch_monitor">مراقبة الإشارة</string>
+    <string name="ch_alert">تنبيهات ضعف الإشارة</string>
+</resources>

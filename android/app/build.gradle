@@ -1,0 +1,64 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.signalscope.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.signalscope.app'
+        minSdk 26
+        targetSdk 35
+        // GitHub Actions يمرّر رقم التشغيل، فيزيد رقم الإصدار تلقائياً مع كل بناء
+        versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger())
+        versionName '1.1.0'
+    }
+
+    // The web UI is shared with the desktop/PWA build: ../web is packaged as the APK's assets.
+    sourceSets {
+        main {
+            assets.srcDirs += ["$rootDir/../web"]
+        }
+    }
+
+    // مفتاح توقيع ثابت من GitHub Secrets (يسمح بتحديث التطبيق فوق النسخة السابقة).
+    // بدون الأسرار يُستخدم مفتاح debug كما كان.
+    def ksFile = System.getenv('SIGNING_KEYSTORE_PATH')
+    signingConfigs {
+        if (ksFile && file(ksFile).exists()) {
+            release {
+                storeFile file(ksFile)
+                storePassword System.getenv('SIGNING_STORE_PASSWORD')
+                keyAlias System.getenv('SIGNING_KEY_ALIAS')
+                keyPassword System.getenv('SIGNING_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Debug key so the release APK installs directly. Replace with your own keystore before publishing.
+            signingConfig signingConfigs.findByName('release') ?: signingConfigs.debug
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+    buildFeatures { buildConfig true }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.activity:activity-ktx:1.9.3'
+    implementation 'androidx.webkit:webkit:1.12.1'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+    implementation 'androidx.work:work-runtime-ktx:2.9.1'
+}
