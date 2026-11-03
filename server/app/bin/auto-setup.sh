@@ -82,24 +82,46 @@ fi
 OUT="$("$PHP" "$APP/bin/install.php" 2>&1)"
 log "install: ${OUT%% *}"
 ENROLL="$("$PHP" -r '$c=require $argv[1]; echo $c["enroll_key"];' "$CFG")"
-if [[ "$OUT" == admin_created* ]]; then
-  read -r _ AUSER APASS <<< "$OUT"
+write_info() { # $1 user  $2 password  $3 enroll key
   {
     echo "راصد الإشارة — بيانات التشغيل (أُنشئ $(date '+%F %T'))"
     echo "احذف هذا الملف بعد حفظ المعلومات في مكان آمن."
     echo
     echo "لوحة التحكم:   https://${DOMAIN:-نطاقك}/dashboard/"
-    echo "اسم المستخدم:  $AUSER"
-    echo "كلمة المرور:   $APASS   (غيّرها من الإعدادات بعد أول دخول)"
+    echo "اسم المستخدم:  $1"
+    echo "كلمة المرور:   $2"
     echo
     echo "ربط الهاتف (التطبيق ← الإعدادات ← المزامنة مع الخادم):"
     echo "عنوان الخادم:  https://${DOMAIN:-نطاقك}"
-    echo "رمز التسجيل:   $ENROLL"
+    echo "رمز التسجيل:   $3"
     echo
     echo "فحص الخادم:    https://${DOMAIN:-نطاقك}/api/v1/ping"
   } > "$INFO"
   chmod 600 "$INFO"
+}
+if [[ "$OUT" == admin_created* ]]; then
+  read -r _ AUSER APASS <<< "$OUT"
+  write_info "$AUSER" "$APASS" "$ENROLL"
   log "أُنشئ حساب المدير؛ التفاصيل في $INFO"
+fi
+
+# ---- تدوير الأسرار عند تغيّر rotate.id ----
+ROT_WANT="$(head -c 64 "$APP/rotate.id" 2>/dev/null | awk '{print $1}')"
+ROT_DONE="$(cat "$APP/.rotated" 2>/dev/null || true)"
+if [ -n "$ROT_WANT" ] && [ "$ROT_WANT" != "$ROT_DONE" ]; then
+  if [[ "$OUT" == admin_created* ]]; then
+    echo "$ROT_WANT" > "$APP/.rotated"   # تثبيت جديد: الأسرار جديدة أصلاً
+  else
+    R="$("$PHP" "$APP/bin/rotate.php" 2>&1)"
+    if [[ "$R" == rotated* ]]; then
+      read -r _ AUSER APASS ENROLL <<< "$R"
+      write_info "$AUSER" "$APASS" "$ENROLL"
+      echo "$ROT_WANT" > "$APP/.rotated"
+      log "دُوّرت كلمة مرور المدير ورمز التسجيل؛ القيم الجديدة في $INFO"
+    else
+      log "فشل تدوير الأسرار: $R"
+    fi
+  fi
 fi
 
 # ---- 3) مهام cron ----
