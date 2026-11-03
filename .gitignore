@@ -15,3 +15,6 @@ server/app/config.php
 dist/
 
 .DS_Store
+
+# سجل PHP الذي قد يُنشأ داخل نسخة المستودع على الخادم
+error_log

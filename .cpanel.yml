@@ -12,4 +12,4 @@ deployment:
     - /bin/cp -R server/public/dashboard/. $HOMEDIR/public_html/dashboard/
     - /bin/cp -R web/. $HOMEDIR/public_html/app/
     - /bin/cp -R server/app/lib server/app/cron server/app/bin server/app/rotate.id server/app/data server/app/bootstrap.php server/app/schema.sql server/app/config.example.php server/app/.htaccess $HOMEDIR/signalscope/
-    - /bin/bash $HOMEDIR/signalscope/bin/auto-setup.sh >> $HOMEDIR/signalscope/install.log 2>&1 || true
+    - cd $HOMEDIR/signalscope && /bin/bash $HOMEDIR/signalscope/bin/auto-setup.sh >> $HOMEDIR/signalscope/install.log 2>&1 || true

@@ -10,6 +10,8 @@ APP="$(cd ~ && pwd)/signalscope"
 CFG="$APP/config.php"
 INFO="$APP/SETUP-INFO.txt"
 U="$(id -un)"
+# العمل من مجلد التطبيق، لا من نسخة المستودع: أي ملف يُنشأ هناك (مثل error_log) يمنع cPanel من النشر التالي
+cd "$APP" || exit 0
 log() { echo "[$(date '+%F %T')] $*"; }
 rand() { head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c "${1:-24}"; }
 
@@ -20,7 +22,7 @@ for v in 84 83 82 81; do
 done
 [ -z "$PHP" ] && PHP="$(command -v php || echo /usr/local/bin/php)"
 # إعداد الاستضافة فيه session.gc_divisor=0 فيطبع PHP تحذيراً مع كل تشغيل؛ نصحّحه لأوامرنا
-PHPX=("$PHP" -d session.gc_divisor=100 -d display_errors=stderr)
+PHPX=("$PHP" -d session.gc_divisor=100 -d display_errors=stderr -d error_log="$APP/php_error.log")
 if ! "$PHP" -r 'exit(PHP_VERSION_ID >= 80100 ? 0 : 1);' 2>/dev/null; then
   log "PHP 8.1+ غير موجود ($PHP). فعّله من MultiPHP Manager ثم أعد Deploy."; exit 0
 fi
