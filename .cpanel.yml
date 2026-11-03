@@ -1,9 +1,9 @@
-# بديل للنشر عبر FTPS: cPanel ← Git™ Version Control ← Pull or Deploy.
-# عدّل CPANELUSER إلى اسم حسابك في cPanel.
+# النشر من cPanel ← Git™ Version Control ← Manage ← Pull or Deploy ← Deploy HEAD Commit.
+# يكتشف مجلد المنزل تلقائياً، فلا حاجة لتعديل هذا الملف. لا يلمس signalscope/config.php.
 ---
 deployment:
   tasks:
-    - export HOMEDIR=/home/CPANELUSER
+    - export HOMEDIR=$(cd ~ && pwd)
     - /bin/mkdir -p $HOMEDIR/public_html/api $HOMEDIR/public_html/dashboard $HOMEDIR/public_html/app $HOMEDIR/signalscope
     - /bin/cp -R server/public/api/. $HOMEDIR/public_html/api/
     - /bin/cp -R server/public/dashboard/. $HOMEDIR/public_html/dashboard/

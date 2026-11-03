@@ -74,7 +74,7 @@ Android (تسجيل + طابور محلي)  ──HTTPS gzip──▶  public_ht
 - كل push يغيّر `android/` أو `web/` ← يبني APK ويضعه في إصدار **latest** على صفحة Releases.
 - وسم مثل `v1.1.0` (`git tag v1.1.0 && git push --tags`) ← إصدار دائم.
 
-بديل بلا FTP: cPanel ← **Git™ Version Control** ← Clone المستودع، ثم Deploy. يستخدم ملف `.cpanel.yml` (عدّل CPANELUSER فيه).
+بديل بلا FTP ولا أسرار: cPanel ← **Git™ Version Control** ← Create، والصق رابط المستودع، ثم Manage ← Pull or Deploy ← **Deploy HEAD Commit**. يستخدم ملف `.cpanel.yml` ويكتشف مجلد المنزل تلقائياً. للتحديث لاحقاً: **Update from Remote** ثم **Deploy HEAD Commit**.
 
 ### مفتاح توقيع ثابت (مستحسن)
 بدونه يوقّع كل بناء بمفتاح مختلف، فيرفض Android تثبيت التحديث فوق القديم وتضطر لإزالة التطبيق. أنشئ مفتاحاً مرة واحدة على أي حاسوب فيه Java:
