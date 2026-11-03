@@ -17,6 +17,10 @@ Android (تسجيل + طابور محلي)  ──HTTPS gzip──▶  public_ht
 
 ## 1. التثبيت على الاستضافة (cPanel) — مرة واحدة
 
+**الطريقة التلقائية (موصى بها):** cPanel ← **Git™ Version Control** ← Create، والصق رابط المستودع، ثم Manage ← Pull or Deploy ← **Deploy HEAD Commit**. أول Deploy ينشئ قاعدة البيانات ومستخدمها و`config.php` والجداول وحساب المدير ومهام cron تلقائياً، ويكتب الرابط وبيانات الدخول ورمز تسجيل الهواتف في `~/signalscope/SETUP-INFO.txt` (افتحه من File Manager ثم احذفه). سجل الإعداد في `~/signalscope/install.log`. إن تعذّر شيء، اتبع الطريقة اليدوية أدناه.
+
+**الطريقة اليدوية:**
+
 **أ) قاعدة البيانات:** cPanel ← **MySQL® Databases**
 1. أنشئ قاعدة باسم `signalscope` (ستصبح `CPANELUSER_signalscope`).
 2. أنشئ مستخدماً بكلمة مرور قوية، وأضفه للقاعدة مع **ALL PRIVILEGES**.

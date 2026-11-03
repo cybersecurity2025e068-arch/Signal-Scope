@@ -1,0 +1,110 @@
+#!/bin/bash
+# إعداد تلقائي على cPanel. يُشغَّل بعد كل Deploy من .cpanel.yml، وهو آمن للتكرار:
+#  1) أول مرة فقط: ينشئ قاعدة MySQL ومستخدماً بكلمة مرور عشوائية، ويكتب config.php
+#  2) ينشئ الجداول وحساب المدير الأول
+#  3) يضيف مهام cron إن لم تكن موجودة
+# النتيجة (الروابط وبيانات الدخول) تُكتب في ~/signalscope/SETUP-INFO.txt (مقروء لك فقط)
+set -u
+umask 077
+APP="$(cd ~ && pwd)/signalscope"
+CFG="$APP/config.php"
+INFO="$APP/SETUP-INFO.txt"
+U="$(id -un)"
+log() { echo "[$(date '+%F %T')] $*"; }
+rand() { head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c "${1:-24}"; }
+
+# أحدث PHP 8 متاح (الأوامر تحتاج 8.1+)
+PHP=""
+for v in 84 83 82 81; do
+  [ -x "/opt/cpanel/ea-php$v/root/usr/bin/php" ] && { PHP="/opt/cpanel/ea-php$v/root/usr/bin/php"; break; }
+done
+[ -z "$PHP" ] && PHP="$(command -v php || echo /usr/local/bin/php)"
+if ! "$PHP" -r 'exit(PHP_VERSION_ID >= 80100 ? 0 : 1);' 2>/dev/null; then
+  log "PHP 8.1+ غير موجود ($PHP). فعّله من MultiPHP Manager ثم أعد Deploy."; exit 0
+fi
+jget() { "$PHP" -r '$j=json_decode(stream_get_contents(STDIN),true); $v=$j; foreach(array_slice($argv,1) as $k){$v=$v[$k]??null;} echo is_scalar($v)?$v:json_encode($v);' "$@"; }
+
+UAPI="$(command -v uapi || echo /usr/bin/uapi)"
+DOMAIN=""
+[ -x "$UAPI" ] && DOMAIN="$("$UAPI" --output=json DomainInfo list_domains 2>/dev/null | jget result data main_domain)"
+
+# ---- 1) قاعدة البيانات و config.php (مرة واحدة) ----
+# config.php منسوخ من المثال ولم يُعدَّل بعد؟ نحتفظ به جانباً وننشئ واحداً صحيحاً
+if [ -f "$CFG" ] && grep -q "CHANGE_ME\|CPANELUSER" "$CFG"; then
+  mv "$CFG" "$CFG.unfilled.bak"; log "config.php لم يكن مكتملاً: نُقل إلى config.php.unfilled.bak"
+fi
+if [ ! -f "$CFG" ]; then
+  if [ ! -x "$UAPI" ]; then
+    log "أداة uapi غير متاحة: أنشئ القاعدة و config.php يدوياً (README)."; exit 0
+  fi
+  DB="${U}_signalscope"; DBU="${U}_ssapp"; DBP="$(rand 28)"
+  ok() { [ "$(echo "$1" | jget result status)" = "1" ]; }
+  R="$("$UAPI" --output=json Mysql create_database name="$DB")"
+  ok "$R" || echo "$R" | grep -qi "exist" || { log "فشل إنشاء القاعدة: $(echo "$R" | jget result errors)"; exit 0; }
+  R="$("$UAPI" --output=json Mysql create_user name="$DBU" password="$DBP")"
+  if ! ok "$R"; then
+    R="$("$UAPI" --output=json Mysql set_password user="$DBU" password="$DBP")"
+    ok "$R" || { log "فشل إنشاء مستخدم القاعدة: $(echo "$R" | jget result errors)"; exit 0; }
+  fi
+  R="$("$UAPI" --output=json Mysql set_privileges_on_database user="$DBU" database="$DB" privileges="ALL%20PRIVILEGES")"
+  ok "$R" || { log "فشل منح الصلاحيات: $(echo "$R" | jget result errors)"; exit 0; }
+
+  ENROLL="$(rand 20)"; SETUP="$(rand 24)"
+  cat > "$CFG" <<CONF
+<?php
+// أنشأه auto-setup.sh تلقائياً في $(date '+%F %T'). يمكنك تعديله يدوياً.
+return [
+    'db' => [
+        'dsn'  => 'mysql:host=localhost;dbname=$DB;charset=utf8mb4',
+        'user' => '$DBU',
+        'pass' => '$DBP',
+    ],
+    'enroll_key' => '$ENROLL',
+    'setup_key' => '$SETUP',
+    'opencellid_key' => '',
+    'retention_days' => 365,
+    'max_batch' => 5000,
+    'max_gps_accuracy_m' => 50,
+];
+CONF
+  chmod 600 "$CFG"
+  log "أُنشئت القاعدة $DB والمستخدم $DBU و config.php"
+fi
+
+# ---- 2) الجداول وحساب المدير ----
+OUT="$("$PHP" "$APP/bin/install.php" 2>&1)"
+log "install: ${OUT%% *}"
+ENROLL="$("$PHP" -r '$c=require $argv[1]; echo $c["enroll_key"];' "$CFG")"
+if [[ "$OUT" == admin_created* ]]; then
+  read -r _ AUSER APASS <<< "$OUT"
+  {
+    echo "راصد الإشارة — بيانات التشغيل (أُنشئ $(date '+%F %T'))"
+    echo "احذف هذا الملف بعد حفظ المعلومات في مكان آمن."
+    echo
+    echo "لوحة التحكم:   https://${DOMAIN:-نطاقك}/dashboard/"
+    echo "اسم المستخدم:  $AUSER"
+    echo "كلمة المرور:   $APASS   (غيّرها من الإعدادات بعد أول دخول)"
+    echo
+    echo "ربط الهاتف (التطبيق ← الإعدادات ← المزامنة مع الخادم):"
+    echo "عنوان الخادم:  https://${DOMAIN:-نطاقك}"
+    echo "رمز التسجيل:   $ENROLL"
+    echo
+    echo "فحص الخادم:    https://${DOMAIN:-نطاقك}/api/v1/ping"
+  } > "$INFO"
+  chmod 600 "$INFO"
+  log "أُنشئ حساب المدير؛ التفاصيل في $INFO"
+fi
+
+# ---- 3) مهام cron ----
+if command -v crontab >/dev/null 2>&1; then
+  CUR="$(crontab -l 2>/dev/null || true)"
+  if ! echo "$CUR" | grep -q "signalscope/cron/estimate_towers.php"; then
+    { [ -n "$CUR" ] && echo "$CUR"
+      echo "*/15 * * * * $PHP $APP/cron/estimate_towers.php >/dev/null 2>&1"
+      echo "17 3 * * * $PHP $APP/cron/cleanup.php >/dev/null 2>&1"; } | crontab -
+    log "أُضيفت مهام cron"
+  fi
+else
+  log "crontab غير متاح: أضف مهام cron يدوياً (README)."
+fi
+log "انتهى الإعداد"
