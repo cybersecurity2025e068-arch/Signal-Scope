@@ -19,6 +19,8 @@ for v in 84 83 82 81; do
   [ -x "/opt/cpanel/ea-php$v/root/usr/bin/php" ] && { PHP="/opt/cpanel/ea-php$v/root/usr/bin/php"; break; }
 done
 [ -z "$PHP" ] && PHP="$(command -v php || echo /usr/local/bin/php)"
+# إعداد الاستضافة فيه session.gc_divisor=0 فيطبع PHP تحذيراً مع كل تشغيل؛ نصحّحه لأوامرنا
+PHPX=("$PHP" -d session.gc_divisor=100 -d display_errors=stderr)
 if ! "$PHP" -r 'exit(PHP_VERSION_ID >= 80100 ? 0 : 1);' 2>/dev/null; then
   log "PHP 8.1+ غير موجود ($PHP). فعّله من MultiPHP Manager ثم أعد Deploy."; exit 0
 fi
@@ -79,7 +81,7 @@ CONF
 fi
 
 # ---- 2) الجداول وحساب المدير ----
-OUT="$("$PHP" "$APP/bin/install.php" 2>&1)"
+OUT="$("${PHPX[@]}" "$APP/bin/install.php" 2>&1 | grep -v "PHP Startup")"
 log "install: ${OUT%% *}"
 ENROLL="$("$PHP" -r '$c=require $argv[1]; echo $c["enroll_key"];' "$CFG")"
 write_info() { # $1 user  $2 password  $3 enroll key
@@ -112,7 +114,7 @@ if [ -n "$ROT_WANT" ] && [ "$ROT_WANT" != "$ROT_DONE" ]; then
   if [[ "$OUT" == admin_created* ]]; then
     echo "$ROT_WANT" > "$APP/.rotated"   # تثبيت جديد: الأسرار جديدة أصلاً
   else
-    R="$("$PHP" "$APP/bin/rotate.php" 2>&1)"
+    R="$("${PHPX[@]}" "$APP/bin/rotate.php" 2>&1 | grep -v "PHP Startup")"
     if [[ "$R" == rotated* ]]; then
       read -r _ AUSER APASS ENROLL <<< "$R"
       write_info "$AUSER" "$APASS" "$ENROLL"
@@ -129,8 +131,8 @@ if command -v crontab >/dev/null 2>&1; then
   CUR="$(crontab -l 2>/dev/null || true)"
   if ! echo "$CUR" | grep -q "signalscope/cron/estimate_towers.php"; then
     { [ -n "$CUR" ] && echo "$CUR"
-      echo "*/15 * * * * $PHP $APP/cron/estimate_towers.php >/dev/null 2>&1"
-      echo "17 3 * * * $PHP $APP/cron/cleanup.php >/dev/null 2>&1"; } | crontab -
+      echo "*/15 * * * * $PHP -d session.gc_divisor=100 $APP/cron/estimate_towers.php >/dev/null 2>&1"
+      echo "17 3 * * * $PHP -d session.gc_divisor=100 $APP/cron/cleanup.php >/dev/null 2>&1"; } | crontab -
     log "أُضيفت مهام cron"
   fi
 else

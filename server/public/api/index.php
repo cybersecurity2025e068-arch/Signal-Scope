@@ -24,6 +24,8 @@ if (!defined('SS_APP_DIR')) {
     exit;
 }
 
+ini_set('display_errors', '0'); // تحذيرات PHP لا تُطبع داخل ردود JSON
+ini_set('session.gc_divisor', '100');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 
