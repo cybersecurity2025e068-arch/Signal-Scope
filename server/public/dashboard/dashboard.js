@@ -1,8 +1,10 @@
 /* لوحة راصد الإشارة — واجهة المدير (بلا مكتبات بناء؛ MapLibre من CDN) */
 (function () {
   "use strict";
-  // index.php في المسار يجعل الواجهة تعمل حتى إن لم يكن mod_rewrite مفعّلاً في الاستضافة
-  const API = new URL("../api/index.php/", location.href).href;
+  // index.php?r=/v1/... يعمل على أي استضافة (لا يحتاج mod_rewrite ولا PATH_INFO)
+  const API_BASE = new URL("../api/index.php", location.href).href;
+  const apiUrl = path => { const i = path.indexOf("?"); const p = i < 0 ? path : path.slice(0, i), q = i < 0 ? "" : path.slice(i + 1);
+    return `${API_BASE}?r=/${encodeURI(p)}${q ? "&" + q : ""}`; };
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const isNum = v => typeof v === "number" && isFinite(v);
@@ -28,7 +30,7 @@
   async function api(path, opts = {}) {
     const o = { credentials: "same-origin", headers: { "X-SS": "1", "Accept": "application/json" }, ...opts };
     if (o.body && typeof o.body !== "string") { o.body = JSON.stringify(o.body); o.headers["Content-Type"] = "application/json"; }
-    const r = await fetch(API + path, o);
+    const r = await fetch(apiUrl(path), o);
     let j = null; try { j = await r.json(); } catch (_) { }
     if (r.status === 401 && j && j.error === "login_required") { showAuth(false); throw new Error(j.message); }
     if (!r.ok) throw new Error((j && j.message) || `HTTP ${r.status}`);
@@ -176,8 +178,8 @@
     V().innerHTML = `
       <div class="row spread" style="margin-bottom:6px"><h1>${esc(s.name || "جلسة " + s.id)}</h1>
         <div class="row noprint">
-          <a class="btn sm" href="${API}v1/sessions/${id}/csv">CSV</a>
-          <a class="btn sm" href="${API}v1/sessions/${id}/geojson?download=1">GeoJSON</a>
+          <a class="btn sm" href="${apiUrl(`v1/sessions/${id}/csv`)}">CSV</a>
+          <a class="btn sm" href="${apiUrl(`v1/sessions/${id}/geojson?download=1`)}">GeoJSON</a>
           <button class="btn sm" id="bPrint" type="button">طباعة / PDF</button>
           <button class="btn sm danger" id="bDel" type="button">حذف</button>
         </div></div>
@@ -381,7 +383,7 @@
   applyTheme();
   (async () => {
     try {
-      const res = await fetch(API + "v1/admin/status", { credentials: "same-origin" });
+      const res = await fetch(apiUrl("v1/admin/status"), { credentials: "same-origin" });
       const body = await res.text();
       let st;
       try { st = JSON.parse(body); } catch (_) { throw new Error(`HTTP ${res.status}: ${body.trim().slice(0, 300) || "رد فارغ من الخادم (غالباً خطأ PHP؛ راجع إصدار PHP وملف error_log)"}`); }

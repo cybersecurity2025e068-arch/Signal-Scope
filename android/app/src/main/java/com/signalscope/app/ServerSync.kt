@@ -94,10 +94,10 @@ object ServerSync {
         var u = raw.trim().trimEnd('/')
         if (!u.contains("://")) u = "https://$u"
         if (!u.startsWith("https://")) return null
-        u = u.removeSuffix("/index.php")
+        u = u.substringBefore("/index.php")
         if (!u.endsWith("/api")) u += "/api"
-        // index.php in the path works even when the host has no mod_rewrite
-        return "$u/index.php"
+        // "index.php?r=" + "/v1/..." works on any host (no mod_rewrite or PATH_INFO needed)
+        return "$u/index.php?r="
     }
 
     private fun err(m: String) = JSONObject().put("ok", false).put("message", m)
@@ -287,7 +287,7 @@ object ServerSync {
     fun status(): JSONObject {
         val p = prefs()
         return JSONObject().put("configured", configured).put("enabled", enabled)
-            .put("server", baseUrl?.removeSuffix("/index.php")?.removeSuffix("/api") ?: "").put("name", p.getString("name", "") ?: "")
+            .put("server", baseUrl?.substringBefore("/api/index.php") ?: "").put("name", p.getString("name", "") ?: "")
             .put("pending", pendingCount()).put("sent", p.getLong("sent_total", 0))
             .put("lastSync", p.getLong("last_sync", 0)).put("error", p.getString("last_error", "") ?: "")
             .put("recordingToServer", sessionUuid != null)

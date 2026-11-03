@@ -34,6 +34,8 @@ $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $base = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
 $path = '/' . trim(substr($uri, strlen($base)), '/');
 if (str_starts_with($path, '/index.php')) $path = substr($path, 10) ?: '/';
+// بديل يعمل على أي خادم: index.php?r=/v1/ping (بلا mod_rewrite ولا PATH_INFO)
+if (isset($_GET['r']) && is_string($_GET['r'])) $path = '/' . trim($_GET['r'], '/');
 
 try {
     // ---------- واجهة الهاتف ----------
