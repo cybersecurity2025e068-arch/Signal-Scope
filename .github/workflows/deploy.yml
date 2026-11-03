@@ -1,9 +1,8 @@
 name: Deploy to cPanel
 
+# النشر الأساسي يتم من cPanel ← Git™ Version Control (.cpanel.yml).
+# هذا بديل يدوي عبر FTPS: يحتاج الأسرار FTP_SERVER و FTP_USERNAME و FTP_PASSWORD.
 on:
-  push:
-    branches: [main]
-    paths: ["server/**", "web/**", "tools/build-hosting.sh", ".github/workflows/deploy.yml"]
   workflow_dispatch:
 
 concurrency: deploy-hosting
