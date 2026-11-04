@@ -120,7 +120,7 @@ final class Osm
         foreach ($st as $r) {
             $out[] = ['id' => (int)$r['id'], 'h' => (float)$r['height_m'],
                       'bb' => [(float)$r['min_lat'], (float)$r['min_lon'], (float)$r['max_lat'], (float)$r['max_lon']],
-                      'poly' => json_decode($r['poly'], true)];
+                      'poly' => $r['poly']];   // نص JSON يُفكّ عند الحاجة فقط (توفير الذاكرة)
         }
         return $out;
     }

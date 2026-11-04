@@ -60,7 +60,8 @@ final class Obstacles
             WHERE est_lat IS NOT NULL AND est_method IN ('pathloss','pathloss+ta','centroid')
               AND est_radius_m <= " . self::MAX_RADIUS . " ORDER BY last_seen DESC LIMIT 300")->fetchAll();
         $osmBudget = 6;
-        $stats = ['cells' => 0, 'samples' => 0, 'skipped_osm' => 0, 'dem' => []];
+        $stats = ['cells' => 0, 'samples' => 0, 'skipped_osm' => 0, 'skipped_ms' => 0, 'dem' => []];
+        $msBudget = max(0.0, $budget - 5);   // وقت استيراد مباني Microsoft في هذا التشغيل
         foreach ($cells as $c) {
             if (microtime(true) - $t0 > $budget) break;
             $cid = (int)$c['id']; $tLat = (float)$c['est_lat']; $tLon = (float)$c['est_lon'];
@@ -80,8 +81,15 @@ final class Obstacles
             foreach ($rows as $r) { $s = min($s, (float)$r['lat']); $n = max($n, (float)$r['lat']); $w = min($w, (float)$r['lon']); $e = max($e, (float)$r['lon']); }
             $s -= 0.002; $n += 0.002; $w -= 0.002; $e += 0.002;
 
-            $pending = Osm::ensure(Osm::tilesFor($s, $w, $n, $e), $osmBudget, $log);
-            if ($pending > 0) { $osmBudget = 0; $stats['skipped_osm']++; continue; }
+            // المصدر الأساسي: مباني Microsoft. OpenStreetMap احتياطي فقط حيث لا تغطية لـ Microsoft
+            $tMs = microtime(true);
+            [$msPending, $msNone] = MsBuildings::ensure(MsBuildings::quadkeysFor($s, $w, $n, $e), $msBudget, $log);
+            $msBudget = max(0.0, $msBudget - (microtime(true) - $tMs));
+            if ($msPending > 0) { $msBudget = 0; $stats['skipped_ms']++; continue; }
+            if ($msNone > 0) {
+                $pending = Osm::ensure(Osm::tilesFor($s, $w, $n, $e), $osmBudget, $log);
+                if ($pending > 0) { $osmBudget = 0; $stats['skipped_osm']++; continue; }
+            }
 
             $demOK = true;
             foreach ([[$s, $w], [$s, $e], [$n, $w], [$n, $e]] as [$la, $lo]) {
@@ -235,6 +243,8 @@ final class Obstacles
             'osm_tiles' => (int)$q("SELECT COUNT(*) FROM osm_tiles WHERE status = 'ok'"),
             'osm_errors' => (int)$q("SELECT COUNT(*) FROM osm_tiles WHERE status <> 'ok'"),
             'buildings' => (int)$q('SELECT COUNT(*) FROM buildings'),
+            'buildings_ms' => (int)$q("SELECT COUNT(*) FROM buildings WHERE tile LIKE 'ms:%'"),
+            'ms_quadkeys' => MsBuildings::statusAll(),
             'dem_tiles' => array_map('basename', $dem),
         ];
     }

@@ -28,6 +28,7 @@ final class BuildingIndex
         foreach ($this->grid[$k] as $i) {
             $bd = $this->b[$i];
             if ($lat < $bd['bb'][0] || $lat > $bd['bb'][2] || $lon < $bd['bb'][1] || $lon > $bd['bb'][3]) continue;
+            if (is_string($bd['poly'])) $this->b[$i]['poly'] = $bd['poly'] = json_decode($bd['poly'], true) ?: [];
             if (self::inPoly($lat, $lon, $bd['poly'])) return $bd;
         }
         return null;

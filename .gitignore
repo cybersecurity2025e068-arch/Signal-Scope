@@ -18,3 +18,9 @@ dist/
 
 # سجل PHP الذي قد يُنشأ داخل نسخة المستودع على الخادم
 error_log
+
+# بيانات تُنزَّل على الخادم (تضاريس ومبانٍ ومؤقتات التحديث)
+server/app/data/srtm/
+server/app/data/msb/
+server/app/data/update/
+server/app/data/deployed.json
