@@ -78,6 +78,9 @@ tr.click:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent
 .diag li.bad { border-color: var(--bad); } .diag li.warn { border-color: var(--warn); } .diag li.good { border-color: var(--good); }
 .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); }
 .chip.off { color: var(--bad); }
+.stack { display: flex; height: 26px; border-radius: 6px; overflow: hidden; background: var(--line); }
+.stack > div { height: 100%; display: grid; place-items: center; font-size: 11px; color: #fff; overflow: hidden; white-space: nowrap; }
+:root { --o-terrain: #a0703c; --o-buildings: #8e5bd6; --o-indoor: #e8833a; --o-residual: #7d8794; --o-clear: #2f9e6b; }
 canvas.chart { width: 100%; height: 220px; display: block; }
 .note { font-size: 13px; color: var(--muted); }
 .err { color: var(--bad); margin: 0; }

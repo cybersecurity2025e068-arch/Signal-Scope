@@ -26,6 +26,19 @@
     ["step", ["get", prop], qColor("bad"), -110, qColor("poor"), -100, qColor("fair"), -90, qColor("good"), -80, qColor("excellent")]];
   const legend = () => `<div class="legend">${Q.map(q => `<span><i style="background:${qColor(q.k)}"></i>${q.ar} ${bd(q.min > -999 ? "≥ " + q.min : "&lt; -110")}</span>`).join("")}<span><i style="background:${qColor("none")}"></i>بلا خدمة</span></div>`;
 
+  // ------------------------------------------------------------------ obstacles helpers
+  const OBS = [["terrain", "التضاريس"], ["buildings", "المباني"], ["indoor", "داخل مبنى"], ["residual", "غير مفسَّر (خفوت أو تداخل)"]];
+  const obsColor = k => css("--o-" + k);
+  function obsCard(o) {
+    if (!o || !o.n) return `<div class="card"><h3>تحليل العوائق</h3><p class="note">لم تُحلَّل قراءات هذه الجلسة بعد. يعمل التحليل تلقائياً كل 15 دقيقة بعد أن يُقدَّر موقع البرج (يلزم نصف قطر ثقة أقل من 1.5 km). يمكنك تشغيله فوراً من صفحة <a href="#/obstacles">العوائق</a>.</p></div>`;
+    const tot = Math.max(o.excess, 0.1);
+    return `<div class="card"><h3>تحليل العوائق</h3>
+      <p>متوسط الفقد الزائد <b class="mono">${bd(fmt(o.excess, 1) + " dB")}</b> على ${fmt(o.n)} قراءة، منه:</p>
+      <div class="stack">${OBS.map(([k, l]) => o[k] > 0 ? `<div style="width:${100 * o[k] / tot}%;background:${obsColor(k)}" title="${l}: ${o[k]} dB">${o[k] / tot > 0.12 ? fmt(o[k], 1) : ""}</div>` : "").join("")}</div>
+      <div class="legend">${OBS.map(([k, l]) => `<span><i style="background:${obsColor(k)}"></i>${l}: ${bd(fmt(o[k], 1) + " dB")}</span>`).join("")}</div>
+      <p class="note">${fmt(o.indoor_pct, 0)}% من القراءات داخل مبانٍ، و${fmt(o.blocked_pct, 0)}% مسارها محجوب بمبنى.${o.terrain_data ? "" : " بيانات التضاريس غير متاحة بعد."} هذا <b>تقدير نموذجي</b> (ITU-R P.526 للحيود و P.2109 لدخول المباني، مع مباني OpenStreetMap وتضاريس SRTM) وليس قياساً مباشراً للعائق.</p></div>`;
+  }
+
   // ------------------------------------------------------------------ API
   async function api(path, opts = {}) {
     const o = { credentials: "same-origin", headers: { "X-SS": "1", "Accept": "application/json" }, ...opts };
@@ -127,7 +140,7 @@
     });
     V().innerHTML = `<div class="empty">جارٍ التحميل…</div>`;
     try {
-      const fn = { overview, sessions, session, coverage, cells, cell, devices, settings }[page] || overview;
+      const fn = { overview, sessions, session, coverage, cells, cell, obstacles, devices, settings }[page] || overview;
       await fn(id);
     } catch (e) { V().innerHTML = `<div class="card"><p class="err">${esc(e.message)}</p></div>`; }
   }
@@ -200,6 +213,7 @@
         <div class="card span2"><h3>المسار ملوّناً حسب RSRP</h3><div class="map" id="sMap"></div>${legend()}<p class="note">الحلقات الحمراء مواضع التبديل بين الخلايا. انقر أي نقطة لتفاصيلها.</p></div>
         <div class="card span2"><h3>RSRP وSINR عبر الزمن</h3><canvas class="chart" id="sChart"></canvas>
           <div class="legend"><span><i style="background:var(--accent)"></i>RSRP (dBm)</span><span><i style="background:${qColor("good")}"></i>SINR (dB) مزاح −100</span><span><i style="background:var(--bad)"></i>تبديل خلية</span></div></div>
+        <div class="span2">${obsCard(r.obstacles)}</div>
         <div class="card"><h3>التشخيص</h3><ul class="diag">${r.diagnostics.map(d => `<li class="${d.level}">${esc(d.text)}</li>`).join("")}</ul></div>
         <div class="card"><h3>الخلايا المخدِّمة</h3><div class="tablewrap"><table><tr><th>الخلية</th><th>التقنية</th><th>القراءات</th><th>متوسط RSRP</th></tr>
           ${r.cells.map(c => `<tr class="click" data-href="#/cell/${c.cell_ref}"><td class="n">${esc(cellName[c.cell_ref])}</td><td>${esc(c.tech)}</td><td class="n">${fmt(c.samples)}</td><td class="n">${fmt(c.avg_rsrp, 1)}</td></tr>`).join("")}</table></div></div>
@@ -341,6 +355,50 @@
     }
     if (c.ocid_lat !== null) { new maplibregl.Marker({ color: "#8e44ad" }).setLngLat([c.ocid_lon, c.ocid_lat]).setPopup(new maplibregl.Popup().setHTML("OpenCelliD")).addTo(m); pts.push([c.ocid_lon, c.ocid_lat]); }
     fit(m, pts);
+  }
+
+  async function obstacles() {
+    const [o, stt] = await Promise.all([api("v1/overview"), api("v1/obstacles/status")]);
+    const sum = stt.summary || {};
+    V().innerHTML = `<div class="row spread" style="margin-bottom:6px"><h1>العوائق</h1><button class="btn sm noprint" id="oRun" type="button">تشغيل التحليل الآن</button></div>
+      <p class="muted" style="margin-top:0" id="oStat"></p>
+      <div class="grid g2">
+        <div class="card span2"><div class="filters noprint">
+          <label class="f">المشغّل<select class="sel" id="oOp"><option value="">الكل</option>${o.operators.map(p => `<option value="${p.mcc}-${p.mnc}">${esc(opName(p.mcc, p.mnc))}</option>`).join("")}</select></label>
+          <label class="f">حجم المربع<select class="sel" id="oSize"><option value="100">100 m</option><option value="150" selected>150 m</option><option value="300">300 m</option></select></label>
+        </div><div class="map" id="oMap"></div>
+        <div class="legend">${OBS.map(([k, l]) => `<span><i style="background:${obsColor(k)}"></i>${l}</span>`).join("")}<span><i style="background:${obsColor("clear")}"></i>بلا فقد يُذكر (&lt; 3 dB)</span><span>كثافة اللون = حجم الفقد الزائد</span></div></div>
+        <div class="card" id="oSum"></div>
+        <div class="card"><h3>أسوأ المناطق</h3><div class="tablewrap" id="oWorst"></div></div>
+      </div>`;
+    const showStatus = s => { $("oStat").innerHTML = `حُلِّلت ${fmt(s.analyzed)} من ${fmt(s.samples_with_location)} قراءة · ${fmt(s.cells_eligible)} خلية موقعها مقدَّر بدقة كافية · ${fmt(s.buildings)} مبنى من OpenStreetMap في ${fmt(s.osm_tiles)} مربع${s.osm_errors ? ` (${s.osm_errors} مربع تعذّر جلبه)` : ""} · تضاريس: ${s.dem_tiles.length ? esc(s.dem_tiles.join(", ")) : "لم تُنزَّل بعد"}`; };
+    showStatus(stt);
+    $("oSum").innerHTML = obsCard(sum).replace('<div class="card"><h3>تحليل العوائق</h3>', "<h3>الإجمالي</h3>").replace(/<\/div>$/, "");
+    const m = await makeMap($("oMap"));
+    m.addSource("g", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    m.addLayer({ id: "g", type: "fill", source: "g", paint: {
+      "fill-color": ["match", ["get", "dominant"], "terrain", obsColor("terrain"), "buildings", obsColor("buildings"), "indoor", obsColor("indoor"), "residual", obsColor("residual"), obsColor("clear")],
+      "fill-opacity": ["interpolate", ["linear"], ["get", "excess"], 0, 0.35, 10, 0.6, 25, 0.85], "fill-outline-color": "#0003" } });
+    popupOn(m, "g", p => `فقد زائد <b class="mono">${p.excess}</b> dB · إشارة ${p.signal} dBm<br>تضاريس ${p.terrain} · مبانٍ ${p.buildings} · داخل مبنى ${p.indoor} · غير مفسَّر ${p.residual} dB<br>${p.n} قراءة`);
+    let first = true;
+    async function load() {
+      const q = new URLSearchParams({ size: $("oSize").value }); const [mcc, mnc] = ($("oOp").value || "-").split("-"); if (mcc) { q.set("mcc", mcc); q.set("mnc", mnc); }
+      const gj = await api("v1/obstacles?" + q);
+      m.getSource("g").setData(gj);
+      if (first && gj.features.length) { fit(m, gj.features.flatMap(f => f.geometry.coordinates[0]), 15); first = false; }
+      const worst = gj.features.map(f => f.properties).filter(p => p.n >= 3).sort((a, b) => b.excess - a.excess).slice(0, 10);
+      const lbl = Object.fromEntries(OBS.concat([["clear", "بلا فقد"]]));
+      $("oWorst").innerHTML = worst.length ? `<table><tr><th>الموقع</th><th>فقد زائد</th><th>السبب الغالب</th><th>قراءات</th></tr>${worst.map(p => `<tr class="click" data-ll="${p.lon},${p.lat}"><td class="n">${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}</td><td class="n">${fmt(p.excess, 1)} dB</td><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${obsColor(p.dominant)}"></i> ${esc(lbl[p.dominant])}</td><td class="n">${p.n}</td></tr>`).join("")}</table>` : `<div class="empty">لا توجد قراءات محلَّلة بعد</div>`;
+      $("oWorst").querySelectorAll("tr[data-ll]").forEach(tr => tr.onclick = () => m.flyTo({ center: tr.dataset.ll.split(",").map(Number), zoom: 16 }));
+    }
+    ["oOp", "oSize"].forEach(id => $(id).onchange = () => load().catch(e => toast(e.message)));
+    $("oRun").onclick = async () => {
+      $("oRun").disabled = true; $("oRun").textContent = "جارٍ التحليل…";
+      try { const r = await api("v1/obstacles/run", { method: "POST" }); showStatus(r.status); toast(`حُلِّلت ${r.run.samples} قراءة جديدة`); await load(); }
+      catch (e) { toast(e.message); }
+      finally { $("oRun").disabled = false; $("oRun").textContent = "تشغيل التحليل الآن"; }
+    };
+    await load();
   }
 
   async function devices() {

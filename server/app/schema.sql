@@ -110,3 +110,42 @@ CREATE TABLE IF NOT EXISTS samples (
   KEY k_ts (ts),
   KEY k_latlon (lat, lon)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ===== تحليل العوائق =====
+-- مربعات OSM التي جُلبت مبانيها (0.02° ≈ 2 km)
+CREATE TABLE IF NOT EXISTS osm_tiles (
+  tile        VARCHAR(24)  NOT NULL PRIMARY KEY,
+  fetched_at  DATETIME     NOT NULL,
+  buildings   INT UNSIGNED NOT NULL DEFAULT 0,
+  status      VARCHAR(16)  NOT NULL DEFAULT 'ok'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS buildings (
+  id         BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+  tile       VARCHAR(24) NOT NULL,
+  min_lat    DOUBLE NOT NULL,
+  min_lon    DOUBLE NOT NULL,
+  max_lat    DOUBLE NOT NULL,
+  max_lon    DOUBLE NOT NULL,
+  height_m   FLOAT  NOT NULL,
+  height_src VARCHAR(10) NOT NULL,
+  poly       MEDIUMTEXT NOT NULL,
+  KEY k_tile (tile),
+  KEY k_lat (min_lat, max_lat)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- نتيجة تحليل المسار لكل قراءة (dB). excess = الفقد الزائد عن أفضل مسار مقاس لهذه الخلية،
+-- موزّعاً على: terrain + buildings + indoor + residual
+CREATE TABLE IF NOT EXISTS sample_loss (
+  sample_id   BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+  cell_ref    INT UNSIGNED NOT NULL,
+  dist_m      FLOAT NOT NULL,
+  excess      FLOAT NOT NULL,
+  terrain     FLOAT NOT NULL,
+  buildings   FLOAT NOT NULL,
+  indoor      FLOAT NOT NULL,
+  residual    FLOAT NOT NULL,
+  n_buildings SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  terrain_ok  TINYINT(1) NOT NULL DEFAULT 0,
+  KEY k_cell (cell_ref)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

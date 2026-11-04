@@ -89,9 +89,20 @@ try {
             $db->prepare('INSERT INTO login_fail (ip, ts) VALUES (?, ?)')->execute([Http::ip(), time()]);
             throw new HttpError(403, 'رمز النشر غير صحيح', 'bad_deploy_token');
         }
+        if ($method === 'POST' && ($_GET['action'] ?? '') === 'analyze') {
+            @set_time_limit(200);
+            $log = [];
+            $r = Obstacles::run(60.0, $log);
+            Http::json(['ok' => true, 'run' => $r, 'log' => array_slice($log, 0, 50), 'status' => Obstacles::status()]);
+        }
         if ($method === 'POST') Http::json(Updater::run((string)($_SERVER['DOCUMENT_ROOT'] ?? '')));
         $f = SS_APP_DIR . '/data/deployed.json';
-        Http::json(['ok' => true, 'version' => SS_VERSION, 'deployed' => is_file($f) ? json_decode((string)file_get_contents($f), true) : null]);
+        $q = function (string $sql) { return (int)ss_db()->query($sql)->fetchColumn(); };
+        Http::json(['ok' => true, 'version' => SS_VERSION, 'deployed' => is_file($f) ? json_decode((string)file_get_contents($f), true) : null,
+            'counts' => ['devices' => $q('SELECT COUNT(*) FROM devices'), 'sessions' => $q('SELECT COUNT(*) FROM sessions'),
+                         'samples' => $q('SELECT COUNT(*) FROM samples'), 'cells' => $q('SELECT COUNT(*) FROM cells'),
+                         'cells_located' => $q("SELECT COUNT(*) FROM cells WHERE est_lat IS NOT NULL AND est_method <> 'insufficient'")],
+            'obstacles' => Obstacles::status()]);
     }
 
     // ---------- المدير ----------
@@ -181,6 +192,15 @@ try {
     if (preg_match('#^/v1/cells/(\d+)$#', $path, $m)) Http::json(Reports::cellReport((int)$m[1]));
 
     if ($path === '/v1/coverage') Http::json(Reports::coverage($_GET));
+
+    if ($path === '/v1/obstacles') Http::json(Obstacles::grid($_GET));
+    if ($path === '/v1/obstacles/status') Http::json(Obstacles::status() + ['summary' => Obstacles::summary('1=1', [])]);
+    if ($path === '/v1/obstacles/run' && $method === 'POST') {
+        @set_time_limit(120);
+        $log = [];
+        $r = Obstacles::run(25.0, $log);
+        Http::json(['ok' => true, 'run' => $r, 'log' => array_slice($log, 0, 30), 'status' => Obstacles::status()]);
+    }
 
     throw new HttpError(404, 'المسار غير موجود: ' . $path, 'not_found');
 } catch (HttpError $e) {

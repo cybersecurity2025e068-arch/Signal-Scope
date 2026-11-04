@@ -140,6 +140,7 @@ final class Reports
         ];
 
         return [
+            'obstacles'   => Obstacles::summary('s.session_id = ?', [$id]),
             'session'     => self::castSession($s),
             'stats'       => $stats,
             'cells'       => $cellList,

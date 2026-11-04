@@ -14,7 +14,8 @@ $budget = (float)($argv[1] ?? 50); // ثوانٍ (أقل من حد زمن الت
 $db = ss_db();
 $maxAcc = (float)(ss_config()['max_gps_accuracy_m'] ?? 50);
 
-$cells = $db->query('SELECT id, tech FROM cells WHERE dirty = 1 ORDER BY last_seen DESC LIMIT 500')->fetchAll();
+$cells = $db->query('SELECT id, tech, est_lat, est_lon FROM cells WHERE dirty = 1 ORDER BY last_seen DESC LIMIT 500')->fetchAll();
+$drop = $db->prepare('DELETE FROM sample_loss WHERE cell_ref = ?');
 $q = $db->prepare('SELECT lat, lon, rsrp, rssi, ta, tech FROM samples
     WHERE cell_ref = ? AND lat IS NOT NULL AND (acc IS NULL OR acc <= ?) ORDER BY ts DESC LIMIT 20000');
 $agg = $db->prepare('SELECT COUNT(*) n, AVG(COALESCE(rsrp, rssi)) r FROM samples WHERE cell_ref = ?');
@@ -36,6 +37,8 @@ foreach ($cells as $c) {
     $e = TowerEstimator::estimate($pts);
     $up->execute([$e['lat'] ?? null, $e['lon'] ?? null, $e['radius'] ?? null, $e['n'] ?? 0, $e['method'] ?? null, $e['exponent'] ?? null,
                   (int)$a['n'], $a['r'] === null ? null : round((float)$a['r'], 1), $c['id']]);
+    // موقع البرج تحرّك أكثر من 25 م ← تحليل العوائق السابق لهذه الخلية لم يعد صالحاً
+    if ($c['est_lat'] !== null && isset($e['lat']) && Geo::dist((float)$c['est_lat'], (float)$c['est_lon'], $e['lat'], $e['lon']) > 25) $drop->execute([$c['id']]);
     $done++;
 }
 
@@ -68,4 +71,9 @@ if ($key !== '' && function_exists('curl_init')) {
     }
 }
 
-printf("estimated=%d ocid=%d time=%.1fs\n", $done, $ocid, microtime(true) - $t0);
+// تحليل العوائق في الوقت المتبقي
+$obs = [];
+$olog = [];
+try { $obs = Obstacles::run(max(10.0, $budget + 30 - (microtime(true) - $t0)), $olog); }
+catch (Throwable $ex) { $olog[] = 'obstacles error: ' . $ex->getMessage(); }
+printf("estimated=%d ocid=%d obstacles=%s time=%.1fs\n%s\n", $done, $ocid, json_encode($obs), microtime(true) - $t0, implode("\n", $olog));
