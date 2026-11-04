@@ -18,6 +18,9 @@ final class Obstacles
     public const TOWER_H = 30.0;   // ارتفاع الهوائي المفترض فوق الأرض (م)
     public const PHONE_H = 1.5;
     public const MAX_RADIUS = 1500.0;   // لا نحلل خلية تقدير موقعها أسوأ من هذا
+    /** يُرفع عند تغيير النموذج: تُمسح النتائج القديمة ويُعاد التحليل */
+    public const MODEL_VERSION = 2;
+    public const MOVING_MS = 3.0;       // أسرع من هذا = في مركبة، لا «داخل مبنى»
 
     /** حيود حافة السكين، ITU-R P.526 المعادلة 31 */
     public static function J(float $v): float
@@ -56,8 +59,15 @@ final class Obstacles
     {
         $t0 = microtime(true);
         $db = ss_db();
+        $vf = SS_APP_DIR . '/data/obstacles.version';
+        if ((int)@file_get_contents($vf) !== self::MODEL_VERSION) {
+            $db->exec('DELETE FROM sample_loss');
+            @file_put_contents($vf, (string)self::MODEL_VERSION);
+            $log[] = 'نموذج جديد (v' . self::MODEL_VERSION . '): أُعيد التحليل من البداية';
+        }
+        // «المركز الموزون» يُستخدم حين تأتي القراءات من مكان واحد تقريباً: لا يحدد اتجاه المسار، فلا نحلله
         $cells = $db->query("SELECT id, tech, est_lat, est_lon, est_radius_m FROM cells
-            WHERE est_lat IS NOT NULL AND est_method IN ('pathloss','pathloss+ta','centroid')
+            WHERE est_lat IS NOT NULL AND est_method IN ('pathloss','pathloss+ta')
               AND est_radius_m <= " . self::MAX_RADIUS . " ORDER BY last_seen DESC LIMIT 300")->fetchAll();
         $osmBudget = 6;
         $stats = ['cells' => 0, 'samples' => 0, 'skipped_osm' => 0, 'skipped_ms' => 0, 'dem' => []];
@@ -66,7 +76,7 @@ final class Obstacles
             if (microtime(true) - $t0 > $budget) break;
             $cid = (int)$c['id']; $tLat = (float)$c['est_lat']; $tLon = (float)$c['est_lon'];
             $db = ss_db_alive();
-            $qNew = $db->prepare('SELECT s.id, s.lat, s.lon, s.rsrp, s.rssi, s.arfcn, s.tech FROM samples s
+            $qNew = $db->prepare('SELECT s.id, s.lat, s.lon, s.acc, s.speed, s.rsrp, s.rssi, s.arfcn, s.tech FROM samples s
             LEFT JOIN sample_loss l ON l.sample_id = s.id
             WHERE s.cell_ref = ? AND s.lat IS NOT NULL AND (s.rsrp IS NOT NULL OR s.rssi IS NOT NULL) AND l.sample_id IS NULL
                 LIMIT 3000');
@@ -116,12 +126,21 @@ final class Obstacles
             $idx = new BuildingIndex(Osm::inBox($s, $w, $n, $e));
             $cache = [];
             $ins = [];
+            $minD = max(50.0, 0.5 * (float)$c['est_radius_m']);
             foreach ($rows as $r) {
                 $la = (float)$r['lat']; $lo = (float)$r['lon'];
                 $f = self::freqMHz($r['tech'], $r['arfcn'] === null ? null : (int)$r['arfcn']);
+                // الهاتف داخل دائرة عدم اليقين حول البرج: اتجاه المسار مجهول ← نسجّل القراءة كغير قابلة للتحليل
+                if (Geo::dist($tLat, $tLon, $la, $lo) < $minD) { $ins[] = [(int)$r['id'], $cid, 0, 0, 0, 0, 0, 0, 0, 0]; continue; }
                 $key = round($la, 4) . ':' . round($lo, 4) . ':' . (int)$f;   // ~10 م
                 if (!isset($cache[$key])) $cache[$key] = self::path($tLat, $tLon, $la, $lo, $f, $idx, $demOK);
                 $p = $cache[$key];
+                // «داخل مبنى» فقط إن كان الهاتف شبه ثابت والنقطة داخل المبنى بهامش أكبر من خطأ GPS
+                if ($p['indoor'] > 0) {
+                    $acc = $r['acc'] === null ? 30.0 : (float)$r['acc'];
+                    $moving = $r['speed'] !== null && (float)$r['speed'] >= self::MOVING_MS;
+                    if ($moving || ($acc > 8 && $p['edge'] < min($acc, 30.0) / 2)) $p['indoor'] = 0.0;
+                }
                 $sig = $r['rsrp'] !== null ? (float)$r['rsrp'] : (float)$r['rssi'];
                 $excess = max(0.0, $P0 - Geo::fspl(max($p['d'], 20), $f) - $sig);
                 $sum = $p['terrain'] + $p['buildings'] + $p['indoor'];
@@ -154,7 +173,8 @@ final class Obstacles
         $d = Geo::dist($tLat, $tLon, $pLat, $pLon);
         $phoneB = $idx->at($pLat, $pLon);
         $indoor = $phoneB ? self::p2109($fMHz / 1000) : 0.0;
-        if ($d < 30) return ['d' => $d, 'terrain' => 0.0, 'buildings' => 0.0, 'indoor' => $indoor, 'nb' => 0];
+        $edge = $phoneB ? BuildingIndex::edgeDistance($pLat, $pLon, $phoneB['poly']) : 0.0;
+        if ($d < 30) return ['d' => $d, 'terrain' => 0.0, 'buildings' => 0.0, 'indoor' => $indoor, 'nb' => 0, 'edge' => $edge];
 
         $lam = 299.792458 / $fMHz;
         $gT = $demOK ? (Dem::elevation($tLat, $tLon) ?? 0.0) : 0.0;
@@ -180,7 +200,7 @@ final class Obstacles
         }
         $nb = count($crossed);
         $Lb = $vB > -0.78 ? self::J($vB) + min(10.0, 1.5 * max(0, $nb - 1)) : 0.0;
-        return ['d' => $d, 'terrain' => self::J($vT), 'buildings' => $Lb, 'indoor' => $indoor, 'nb' => $nb];
+        return ['d' => $d, 'terrain' => self::J($vT), 'buildings' => $Lb, 'indoor' => $indoor, 'nb' => $nb, 'edge' => $edge];
     }
 
     /** إحصاءات مجمعة لأي مجموعة قراءات */
@@ -188,7 +208,7 @@ final class Obstacles
     {
         $st = ss_db()->prepare("SELECT COUNT(*) n, AVG(l.excess) ex, AVG(l.terrain) te, AVG(l.buildings) bu, AVG(l.indoor) ind, AVG(l.residual) res,
                 SUM(l.indoor > 0) n_indoor, SUM(l.n_buildings > 0) n_blocked, MAX(l.terrain_ok) dem
-            FROM sample_loss l JOIN samples s ON s.id = l.sample_id WHERE $where");
+            FROM sample_loss l JOIN samples s ON s.id = l.sample_id WHERE l.dist_m > 0 AND ($where)");
         $st->execute($args);
         $r = $st->fetch();
         $n = (int)$r['n'];
@@ -212,7 +232,7 @@ final class Obstacles
         $dLon = $dLat / max(0.1, cos(deg2rad($latMid)));
         $st = ss_db()->prepare('SELECT FLOOR(s.lat / ?) gy, FLOOR(s.lon / ?) gx, COUNT(*) n, AVG(l.excess) ex, AVG(l.terrain) te, AVG(l.buildings) bu,
                 AVG(l.indoor) ind, AVG(l.residual) res, AVG(COALESCE(s.rsrp, s.rssi)) sig
-            FROM sample_loss l JOIN samples s ON s.id = l.sample_id WHERE ' . implode(' AND ', $w) . ' GROUP BY gy, gx LIMIT 50000');
+            FROM sample_loss l JOIN samples s ON s.id = l.sample_id WHERE l.dist_m > 0 AND ' . implode(' AND ', $w) . ' GROUP BY gy, gx LIMIT 50000');
         $st->execute(array_merge([$dLat, $dLon], $a));
         $features = [];
         foreach ($st as $r) {
@@ -237,9 +257,10 @@ final class Obstacles
         $q = fn(string $sql) => $db->query($sql)->fetchColumn();
         $dem = glob(Dem::dir() . '/*.hgt') ?: [];
         return [
-            'analyzed' => (int)$q('SELECT COUNT(*) FROM sample_loss'),
+            'analyzed' => (int)$q('SELECT COUNT(*) FROM sample_loss WHERE dist_m > 0'),
+            'not_analysable' => (int)$q('SELECT COUNT(*) FROM sample_loss WHERE dist_m = 0'),
             'samples_with_location' => (int)$q('SELECT COUNT(*) FROM samples WHERE lat IS NOT NULL'),
-            'cells_eligible' => (int)$q("SELECT COUNT(*) FROM cells WHERE est_lat IS NOT NULL AND est_method IN ('pathloss','pathloss+ta','centroid') AND est_radius_m <= " . self::MAX_RADIUS),
+            'cells_eligible' => (int)$q("SELECT COUNT(*) FROM cells WHERE est_lat IS NOT NULL AND est_method IN ('pathloss','pathloss+ta') AND est_radius_m <= " . self::MAX_RADIUS),
             'osm_tiles' => (int)$q("SELECT COUNT(*) FROM osm_tiles WHERE status = 'ok'"),
             'osm_errors' => (int)$q("SELECT COUNT(*) FROM osm_tiles WHERE status <> 'ok'"),
             'buildings' => (int)$q('SELECT COUNT(*) FROM buildings'),

@@ -34,6 +34,22 @@ final class BuildingIndex
         return null;
     }
 
+    /** أقصر مسافة (م) من نقطة داخل المضلع إلى حافته @param array|string $poly */
+    public static function edgeDistance(float $lat, float $lon, $poly): float
+    {
+        if (is_string($poly)) $poly = json_decode($poly, true) ?: [];
+        $kx = 111320 * cos(deg2rad($lat)); $ky = 111320;
+        $best = INF; $n = count($poly);
+        for ($i = 0, $j = $n - 1; $i < $n; $j = $i++) {
+            $ax = ($poly[$j][1] - $lon) * $kx; $ay = ($poly[$j][0] - $lat) * $ky;
+            $bx = ($poly[$i][1] - $lon) * $kx; $by = ($poly[$i][0] - $lat) * $ky;
+            $dx = $bx - $ax; $dy = $by - $ay; $L = $dx * $dx + $dy * $dy;
+            $t = $L > 0 ? max(0.0, min(1.0, -($ax * $dx + $ay * $dy) / $L)) : 0.0;
+            $best = min($best, hypot($ax + $t * $dx, $ay + $t * $dy));
+        }
+        return is_finite($best) ? $best : 0.0;
+    }
+
     private static function inPoly(float $y, float $x, array $p): bool
     {
         $in = false; $n = count($p);

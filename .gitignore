@@ -24,3 +24,4 @@ server/app/data/srtm/
 server/app/data/msb/
 server/app/data/update/
 server/app/data/deployed.json
+server/app/data/obstacles.version
