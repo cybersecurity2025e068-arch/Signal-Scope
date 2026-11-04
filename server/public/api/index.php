@@ -77,6 +77,23 @@ try {
         Http::json(['id' => (int)$dev['id'], 'name' => $dev['name']]);
     }
 
+    // ---------- التحديث الذاتي من GitHub (محمي بـ X-Deploy-Token) ----------
+    if ($path === '/v1/admin/deploy') {
+        $db = ss_db();
+        $st = $db->prepare('SELECT COUNT(*) FROM login_fail WHERE ip = ? AND ts > ?');
+        $st->execute([Http::ip(), time() - 900]);
+        if ((int)$st->fetchColumn() >= 10) throw new HttpError(429, 'محاولات كثيرة', 'rate_limited');
+        $want = (string)(ss_config()['deploy_token'] ?? '');
+        $given = trim((string)($_SERVER['HTTP_X_DEPLOY_TOKEN'] ?? ''));
+        if (strlen($want) < 24 || !hash_equals($want, $given)) {
+            $db->prepare('INSERT INTO login_fail (ip, ts) VALUES (?, ?)')->execute([Http::ip(), time()]);
+            throw new HttpError(403, 'رمز النشر غير صحيح', 'bad_deploy_token');
+        }
+        if ($method === 'POST') Http::json(Updater::run((string)($_SERVER['DOCUMENT_ROOT'] ?? '')));
+        $f = SS_APP_DIR . '/data/deployed.json';
+        Http::json(['ok' => true, 'version' => SS_VERSION, 'deployed' => is_file($f) ? json_decode((string)file_get_contents($f), true) : null]);
+    }
+
     // ---------- المدير ----------
     if ($path === '/v1/admin/setup' && $method === 'POST') {
         $b = Http::body(64_000);

@@ -21,6 +21,7 @@ $cfgFile = $app ? $app . '/config.php' : null;
 $cfgOk = $cfgFile && is_readable($cfgFile);
 $out[] = $ok($cfgOk) . ' config.php' . ($cfgOk ? '' : ' غير موجود أو غير مقروء');
 foreach (array('pdo_mysql', 'json', 'mbstring', 'zlib') as $e) $out[] = $ok(extension_loaded($e)) . ' extension ' . $e;
+$out[] = 'INFO self-update: zip=' . (class_exists('ZipArchive') ? 'yes' : 'no') . ' phar=' . (class_exists('PharData') ? 'yes' : 'no') . ' curl=' . (function_exists('curl_init') ? 'yes' : 'no') . ' url_fopen=' . (ini_get('allow_url_fopen') ? 'yes' : 'no');
 if ($cfgOk && extension_loaded('pdo_mysql')) {
     $cfg = @include $cfgFile;
     try {
@@ -29,11 +30,13 @@ if ($cfgOk && extension_loaded('pdo_mysql')) {
         $t = $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('admins','devices','sessions','samples','cells')")->fetchColumn();
         $out[] = $ok($t == 5) . " tables $t/5";
         if ($t == 5) $out[] = 'INFO admins: ' . $pdo->query('SELECT COUNT(*) FROM admins')->fetchColumn();
+        $out[] = 'INFO deploy token: ' . (!empty($cfg['deploy_token']) && strlen($cfg['deploy_token']) >= 24 ? 'set' : 'not set');
     } catch (Exception $e) {
         $out[] = 'FAIL database: ' . $e->getMessage();
     }
 }
 $out[] = $ok(is_file(__DIR__ . '/index.php')) . ' api/index.php';
+if ($app && is_file($app . '/data/deployed.json')) $out[] = 'INFO last self-update: ' . file_get_contents($app . '/data/deployed.json');
 $out[] = $ok(is_file(__DIR__ . '/../dashboard/index.html')) . ' dashboard/index.html';
 $ht = @file_get_contents(__DIR__ . '/.htaccess');
 $out[] = 'INFO api/.htaccess handler line: ' . (strpos((string)$ht, 'AddHandler') !== false ? 'yes' : 'no');

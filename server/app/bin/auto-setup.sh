@@ -149,6 +149,16 @@ else
   log "تعذّر ضبط رمز التسجيل: $E"
 fi
 
+# ---- رمز التحديث الذاتي (deploy_token) ----
+D="$("${PHPX[@]}" "$APP/bin/deploytoken.php" 2>&1 | grep -v "PHP Startup")"
+if [[ "$D" == created* || "$D" == exists* ]]; then
+  printf 'رمز النشر التلقائي (X-Deploy-Token) لراصد الإشارة:\n\n%s\n\nضعه في نموذج Claude الآمن فقط، ثم احذف هذا الملف.\n' "${D#* }" > "$APP/DEPLOY-TOKEN.txt"
+  chmod 600 "$APP/DEPLOY-TOKEN.txt"
+  [[ "$D" == created* ]] && log "أُنشئ رمز النشر التلقائي في DEPLOY-TOKEN.txt"
+else
+  log "تعذّر إنشاء رمز النشر: $D"
+fi
+
 # ---- تدوير الأسرار عند تغيّر rotate.id ----
 ROT_WANT="$(head -c 64 "$APP/rotate.id" 2>/dev/null | awk '{print $1}')"
 ROT_DONE="$(cat "$APP/.rotated" 2>/dev/null || true)"
