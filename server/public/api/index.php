@@ -98,6 +98,23 @@ try {
             }
             Http::json(['ok' => true, 'run' => $r, 'log' => array_slice($log, 0, 50), 'status' => Obstacles::status()]);
         }
+        if ($method === 'POST' && ($_GET['action'] ?? '') === 'rotate') {
+            // مفتاح جديد يُكتب في config.php و DEPLOY-TOKEN.txt فقط، ولا يُعاد في الرد
+            $abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+            $tok = '';
+            for ($i = 0; $i < 40; $i++) $tok .= $abc[random_int(0, strlen($abc) - 1)];
+            $file = getenv('SIGNALSCOPE_CONFIG') ?: SS_APP_DIR . '/config.php';
+            $src = (string)file_get_contents($file);
+            $new = preg_replace("/('deploy_token'\s*=>\s*)'[^']*'/", "\${1}'$tok'", $src, 1, $n);
+            if ($new === null || $n !== 1) throw new HttpError(500, 'deploy_token غير موجود في config.php', 'rotate_failed');
+            file_put_contents($file, $new);
+            @chmod($file, 0600);
+            $info = SS_APP_DIR . '/DEPLOY-TOKEN.txt';
+            file_put_contents($info, "رمز النشر التلقائي الجديد (X-Deploy-Token) لراصد الإشارة:\n\n$tok\n\nالصقه في نافذة Claude الآمنة فقط، ثم احذف هذا الملف. الرمز القديم أُلغي.\n");
+            @chmod($info, 0600);
+            if (function_exists('opcache_invalidate')) @opcache_invalidate($file, true);
+            Http::json(['ok' => true, 'message' => 'أُنشئ رمز جديد في signalscope/DEPLOY-TOKEN.txt وأُلغي القديم', 'at' => gmdate('c')]);
+        }
         if (($_GET['action'] ?? '') === 'diag') {   // إحصاءات مجمعة للتحقق من التحليل (بلا بيانات شخصية)
             $db = ss_db();
             $rows = function (string $sql) use ($db) { return $db->query($sql)->fetchAll(); };

@@ -1,6 +1,21 @@
 <?php
 // صفحة فحص بلا اعتماديات (تعمل حتى على PHP 5.6) لتشخيص التثبيت بدقة.
 // لا تعرض كلمات مرور. افتحها: https://نطاقك/api/check.php
+// محمية: تفتح فقط مع ترويسة X-Deploy-Token الصحيحة، وإلا تبدو كصفحة غير موجودة
+$app0 = null;
+$home0 = getenv('HOME') ?: (function_exists('posix_getpwuid') ? @posix_getpwuid(posix_geteuid())['dir'] : '');
+foreach (array(getenv('SIGNALSCOPE_APP') ?: '', __DIR__ . '/../../signalscope', __DIR__ . '/../../app', $home0 ? $home0 . '/signalscope' : '') as $c0) {
+    if ($c0 && is_file($c0 . '/config.php')) { $app0 = $c0; break; }
+}
+$cfg0 = $app0 ? @include $app0 . '/config.php' : null;
+$want0 = is_array($cfg0) && isset($cfg0['deploy_token']) ? (string)$cfg0['deploy_token'] : '';
+$given0 = isset($_SERVER['HTTP_X_DEPLOY_TOKEN']) ? trim($_SERVER['HTTP_X_DEPLOY_TOKEN']) : '';
+if (strlen($want0) < 24 || !hash_equals($want0, $given0)) {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "Not Found\n";
+    exit;
+}
 header('Content-Type: text/plain; charset=utf-8');
 header('Cache-Control: no-store');
 $ok = function ($b) { return $b ? 'OK  ' : 'FAIL'; };
