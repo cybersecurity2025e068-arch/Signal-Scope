@@ -105,7 +105,7 @@ try {
             'counts' => ['devices' => $q('SELECT COUNT(*) FROM devices'), 'sessions' => $q('SELECT COUNT(*) FROM sessions'),
                          'samples' => $q('SELECT COUNT(*) FROM samples'), 'cells' => $q('SELECT COUNT(*) FROM cells'),
                          'cells_located' => $q("SELECT COUNT(*) FROM cells WHERE est_lat IS NOT NULL AND est_method <> 'insufficient'")],
-            'obstacles' => Obstacles::status()]);
+            'obstacles' => Obstacles::status() + ['summary' => Obstacles::summary('1=1', [])]]);
     }
 
     // ---------- المدير ----------
