@@ -48,10 +48,15 @@ try {
 
     if ($path === '/v1/register' && $method === 'POST') {
         $b = Http::body(64_000);
-        $key = (string)($b['enroll_key'] ?? '');
-        if (!hash_equals((string)ss_config()['enroll_key'], $key)) {
+        $db = ss_db();
+        $st = $db->prepare('SELECT COUNT(*) FROM login_fail WHERE ip = ? AND ts > ?');
+        $st->execute([Http::ip(), time() - 900]);
+        if ((int)$st->fetchColumn() >= 10) throw new HttpError(429, 'محاولات كثيرة. حاول بعد 15 دقيقة', 'rate_limited');
+        // المقارنة تتجاهل حالة الأحرف والمسافات والشرطات: ABCDE-23456 = abcde 23456
+        if (!hash_equals(Auth::normalizeCode((string)ss_config()['enroll_key']), Auth::normalizeCode((string)($b['enroll_key'] ?? '')))) {
+            $db->prepare('INSERT INTO login_fail (ip, ts) VALUES (?, ?)')->execute([Http::ip(), time()]);
             usleep(500_000);
-            throw new HttpError(403, 'رمز التسجيل غير صحيح', 'bad_enroll_key');
+            throw new HttpError(403, 'رمز التسجيل غير صحيح. انسخه من ملف PHONE-CODE.txt في مجلد signalscope', 'bad_enroll_key');
         }
         $name = trim(mb_substr((string)($b['name'] ?? ''), 0, 100));
         if ($name === '') $name = 'جهاز ' . date('Y-m-d');

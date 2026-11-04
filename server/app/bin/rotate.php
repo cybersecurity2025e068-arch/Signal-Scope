@@ -9,7 +9,7 @@ require __DIR__ . '/../bootstrap.php';
 $rand = fn(int $n) => substr(preg_replace('/[^A-HJ-NP-Za-km-np-z2-9]/', '', base64_encode(random_bytes($n * 3))), 0, $n);
 $file = getenv('SIGNALSCOPE_CONFIG') ?: SS_APP_DIR . '/config.php';
 $src = (string)file_get_contents($file);
-$enroll = $rand(20);
+$enroll = Auth::newCode();
 $setup = $rand(24);
 $new = preg_replace(["/('enroll_key'\s*=>\s*)'[^']*'/", "/('setup_key'\s*=>\s*)'[^']*'/"], ["\${1}'$enroll'", "\${1}'$setup'"], $src, 1, $count);
 if ($new === null || $count < 2) { fwrite(STDERR, "config.php: enroll_key/setup_key not found\n"); exit(1); }

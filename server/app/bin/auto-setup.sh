@@ -88,7 +88,7 @@ if [ ! -f "$CFG" ]; then
   R="$("$UAPI" --output=json Mysql set_privileges_on_database user="$DBU" database="$DB" privileges="ALL%20PRIVILEGES")"
   ok "$R" || { log "فشل منح الصلاحيات: $(echo "$R" | jget result errors)"; exit 0; }
 
-  ENROLL="$(rand 20)"; SETUP="$(rand 24)"
+  ENROLL="$(rand 10 | tr a-z A-Z | tr -d 01OI | head -c 10)"; ENROLL="${ENROLL:0:5}-${ENROLL:5:5}"; SETUP="$(rand 24)"
   cat > "$CFG" <<CONF
 <?php
 // أنشأه auto-setup.sh تلقائياً في $(date '+%F %T'). يمكنك تعديله يدوياً.
@@ -138,6 +138,17 @@ if [[ "$OUT" == admin_created* ]]; then
   log "أُنشئ حساب المدير؛ التفاصيل في $INFO"
 fi
 
+# ---- رمز تسجيل الهواتف: صيغة قصيرة سهلة الكتابة (ABCDE-23456) ----
+E="$("${PHPX[@]}" "$APP/bin/enroll.php" 2>&1 | grep -v "PHP Startup")"
+if [[ "$E" == changed* || "$E" == unchanged* ]]; then
+  ENROLL="${E#* }"
+  [[ "$E" == changed* ]] && { log "رمز تسجيل الهواتف الجديد في PHONE-CODE.txt"; [ -f "$INFO" ] && sed -i "s/^\(رمز التسجيل: *\).*/\1$ENROLL/" "$INFO"; }
+  printf 'رمز تسجيل الهواتف في تطبيق راصد الإشارة:\n\n    %s\n\nعنوان الخادم: https://%s\n' "$ENROLL" "${DOMAIN:-نطاقك}" > "$APP/PHONE-CODE.txt"
+  chmod 600 "$APP/PHONE-CODE.txt"
+else
+  log "تعذّر ضبط رمز التسجيل: $E"
+fi
+
 # ---- تدوير الأسرار عند تغيّر rotate.id ----
 ROT_WANT="$(head -c 64 "$APP/rotate.id" 2>/dev/null | awk '{print $1}')"
 ROT_DONE="$(cat "$APP/.rotated" 2>/dev/null || true)"
@@ -149,6 +160,7 @@ if [ -n "$ROT_WANT" ] && [ "$ROT_WANT" != "$ROT_DONE" ]; then
     if [[ "$R" == rotated* ]]; then
       read -r _ AUSER APASS ENROLL <<< "$R"
       write_info "$AUSER" "$APASS" "$ENROLL"
+      printf 'رمز تسجيل الهواتف في تطبيق راصد الإشارة:\n\n    %s\n\nعنوان الخادم: https://%s\n' "$ENROLL" "${DOMAIN:-نطاقك}" > "$APP/PHONE-CODE.txt"
       echo "$ROT_WANT" > "$APP/.rotated"
       log "دُوّرت كلمة مرور المدير (وتم التحقق منها) ورمز التسجيل؛ القيم الجديدة في $INFO"
     else

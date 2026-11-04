@@ -8,6 +8,20 @@ final class Auth
         return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
     }
 
+    /** رمز سهل الكتابة على الهاتف: 10 أحرف كبيرة وأرقام بلا أحرف متشابهة، بصيغة ABCDE-23456 */
+    public static function newCode(): string
+    {
+        $abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        $c = '';
+        for ($i = 0; $i < 10; $i++) $c .= $abc[random_int(0, strlen($abc) - 1)];
+        return substr($c, 0, 5) . '-' . substr($c, 5);
+    }
+
+    public static function normalizeCode(string $c): string
+    {
+        return (string)preg_replace('/[^A-Z0-9]/', '', strtoupper($c));
+    }
+
     public static function hashToken(string $t): string
     {
         return hash('sha256', $t);
