@@ -92,7 +92,10 @@ try {
         if ($method === 'POST' && ($_GET['action'] ?? '') === 'analyze') {
             @set_time_limit(200);
             $log = [];
-            $r = Obstacles::run(60.0, $log);
+            try { $r = Obstacles::run(60.0, $log); }
+            catch (Throwable $ex) {   // التفاصيل تظهر فقط لحامل رمز النشر
+                Http::json(['ok' => false, 'error' => get_class($ex) . ': ' . $ex->getMessage(), 'at' => basename($ex->getFile()) . ':' . $ex->getLine(), 'log' => $log], 500);
+            }
             Http::json(['ok' => true, 'run' => $r, 'log' => array_slice($log, 0, 50), 'status' => Obstacles::status()]);
         }
         if ($method === 'POST') Http::json(Updater::run((string)($_SERVER['DOCUMENT_ROOT'] ?? '')));
