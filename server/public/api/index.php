@@ -135,6 +135,11 @@ try {
                 'aggressors' => array_slice(Interference::aggressors([])['aggressors'], 0, 8),
                 'sinr_by_rsrp' => $rows("SELECT device_id, FLOOR(rsrp / 10) * 10 band, COUNT(*) n, ROUND(AVG(sinr), 1) sinr, MIN(sinr) mn, MAX(sinr) mx,
                     ROUND(AVG(rsrq), 1) rsrq FROM samples WHERE tech = 'LTE' AND rsrp IS NOT NULL GROUP BY device_id, band ORDER BY device_id, band"),
+                'by_src' => $rows("SELECT i.src, i.cls, COUNT(*) n, ROUND(AVG(i.deg),1) deg, ROUND(AVG(s.rsrp),1) rsrp, ROUND(AVG(s.rsrq),1) rsrq, ROUND(AVG(i.sinr_meas),1) sinr,
+                    ROUND(AVG(i.n_cochan),2) nco, ROUND(AVG(s.speed),1) spd, COUNT(DISTINCT s.session_id) sess, COUNT(DISTINCT s.cell_ref) cells
+                    FROM sample_intf i JOIN samples s ON s.id = i.sample_id GROUP BY i.src, i.cls ORDER BY i.src, n DESC"),
+                'rsrq_vs_sinr' => $rows("SELECT FLOOR(rsrq) q, COUNT(*) n, ROUND(AVG(sinr),1) sinr, ROUND(AVG(rsrp),1) rsrp FROM samples WHERE tech = 'LTE' AND sinr IS NOT NULL AND rsrq IS NOT NULL GROUP BY q ORDER BY q"),
+                'nb_count' => $rows("SELECT i.n_cochan k, COUNT(*) n, ROUND(AVG(i.deg),1) deg FROM sample_intf i GROUP BY k ORDER BY k LIMIT 12"),
                 'nb' => $rows("SELECT device_id, COUNT(*) n, SUM(neighbors IS NOT NULL) with_nb, SUM(neighbors LIKE '%earfcn%') with_earfcn,
                     SUM(neighbors LIKE '%rsrp%') with_rsrp, SUM(sinr IS NOT NULL) with_sinr, SUM(rsrq IS NOT NULL) with_rsrq FROM samples WHERE tech = 'LTE' GROUP BY device_id")]);
         }
