@@ -424,7 +424,8 @@
       <div class="grid g2" style="margin-top:14px">
         <div class="card span2"><h3>خريطة التشويش</h3><div class="map" id="iMap"></div><div class="legend" id="iLegend"></div>
           <p class="note">لون المربع = السبب الغالب حين تتجاوز القراءات المشوَّشة فيه 25%، وكثافته = متوسط تراجع SINR. الدوائر الحمراء المتقطعة = مصادر تشويش خارجي مقدَّرة ونطاق الثقة حولها، والنقاط البرتقالية = أبراج الخلايا المسببة للتداخل.</p></div>
-        <div class="card"><h3>توزيع الأسباب</h3><div id="iCls"></div></div>
+        <div class="card"><h3>توزيع الأسباب</h3><div id="iCls"></div>
+          <p class="note">في شبكات 4G المزدحمة يكون التداخل من خلايا المشغّل نفسه هو العامل الطبيعي المحدِّد لـ SINR. الأسباب التي تستدعي إجراءً: تصادم PCI، وتلوث الإشارة، والخلايا الأقوى من الخادمة، والتشويش الخارجي.</p></div>
         <div class="card"><h3>التشويش حسب ساعة اليوم <small class="muted">(بتوقيت البصرة)</small></h3><div id="iHours"></div></div>
         <div class="card span2"><h3>مصادر التشويش الخارجي</h3><div id="iSrc"></div></div>
         <div class="card span2"><h3>الخلايا المسببة للتداخل (من شبكة المشغّل)</h3><div class="tablewrap" id="iAgg"></div></div>
@@ -460,7 +461,8 @@
       $("iStat").innerHTML = `حُلِّلت ${fmt(st.analyzed)} من ${fmt(st.eligible)} قراءة LTE/5G · ${fmt(st.with_neighbors)} قراءة فيها خلايا مجاورة${caps ? ` · سقف SINR المعايَر: ${caps}` : ""}${sm.from_rsrq ? ` · ${fmt(sm.from_rsrq)} قراءة بلا SINR قُدّر من RSRQ` : ""}`;
       const intfDeg = INTF_ORDER.filter(k => ["clean", "coverage", "load"].indexOf(k) < 0 && C[k]).reduce((a, k) => [a[0] + C[k].deg * C[k].n, a[1] + C[k].n], [0, 0]);
       $("iTiles").innerHTML = `
-        <div class="tile"><span>قراءات مشوَّشة</span><b style="color:${sm.interfered_pct >= 20 ? "#dc2626" : "inherit"}">${fmt(sm.interfered_pct, 1)}%</b><small>${fmt(sm.interfered)} قراءة</small></div>
+        <div class="tile"><span>متأثرة بالتشويش (≥ 3 dB)</span><b>${fmt(sm.interfered_pct, 1)}%</b><small>${fmt(sm.interfered)} قراءة</small></div>
+        <div class="tile"><span>تشويش شديد (≥ 10 dB)</span><b style="color:${sm.severity && sm.n && sm.severity.severe / sm.n >= 0.2 ? "#dc2626" : "inherit"}">${sm.n ? fmt(100 * sm.severity.severe / sm.n, 1) : "—"}%</b><small>متوسط ${fmt(sm.n ? 100 * sm.severity.moderate / sm.n : 0, 0)}% · خفيف ${fmt(sm.n ? 100 * sm.severity.mild / sm.n : 0, 0)}%</small></div>
         <div class="tile"><span>متوسط تراجع SINR فيها</span><b>${intfDeg[1] ? fmt(intfDeg[0] / intfDeg[1], 1) : "—"}</b><small>dB</small></div>
         <div class="tile"><span>مصادر خارجية مرجّحة</span><b style="color:${sr.sources.some(x => x.status === "likely") ? "#dc2626" : "inherit"}">${fmt(sr.sources.filter(x => x.status === "likely").length)}</b><small>+ ${fmt(sr.sources.filter(x => x.status !== "likely").length)} مرشّح</small></div>
         <div class="tile"><span>خلايا مسببة للتداخل</span><b>${fmt(ag.aggressors.length)}</b></div>
@@ -510,7 +512,7 @@
           <div class="row noprint" style="margin-top:8px"><button class="btn sm" data-fly="${s.lon},${s.lat}" type="button">عرض على الخريطة</button>
             <a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}">فتح في خرائط Google للبحث الميداني</a></div>
         </div>`).join("")
-        : `<div class="empty">لم يُرصد مصدر تشويش خارجي. المصدر يُعلن عند 8 قراءات على الأقل في مربع ${r.status.config.grid_m} م يكون 30% منها أو أكثر بتشويش خارجي يخفض SINR ${r.status.config.ext_min} dB فأكثر.</div>`;
+        : `<div class="empty">لم يُرصد مصدر تشويش خارجي. المصدر يُعلن عند 30 قراءة على الأقل في المنطقة، و8 قراءات على الأقل في مربع ${r.status.config.grid_m} م يكون 30% منها أو أكثر بتشويش خارجي يخفض SINR ${r.status.config.ext_min} dB فأكثر.</div>`;
       $("iSrc").querySelectorAll("[data-fly]").forEach(b => b.onclick = () => { m.flyTo({ center: b.dataset.fly.split(",").map(Number), zoom: 16 }); $("iMap").scrollIntoView({ behavior: "smooth", block: "center" }); });
       // الخلايا المسببة
       $("iAgg").innerHTML = ag.aggressors.length ? `<table><tr><th>المشغّل</th><th>النطاق</th><th>PCI المسببة</th><th>الخلايا المتضررة (PCI)</th><th>قراءات</th><th>فرق القوة</th><th>تراجع SINR</th><th>البرج المقدَّر</th><th>التوصية</th></tr>

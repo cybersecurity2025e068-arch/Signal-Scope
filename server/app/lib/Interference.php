@@ -295,9 +295,11 @@ final class Interference
         $hourly = array_map(function ($r) { return ['h' => (int)$r['h'], 'n' => (int)$r['n'], 'deg' => round((float)$r['deg'], 1),
             'intf_pct' => round(100 * $r['n_intf'] / max(1, $r['n']), 1), 'ext_pct' => round(100 * $r['n_ext'] / max(1, $r['n']), 1)]; }, $hours);
         $src = self::rows("SELECT i.src, COUNT(*) n $J GROUP BY i.src", $a);
+        $sev = self::rows("SELECT SUM(i.deg >= 10) severe, SUM(i.deg >= 6 AND i.deg < 10) moderate, SUM(i.deg >= 3 AND i.deg < 6) mild $J", $a)[0] ?? [];
         return ['n' => $total, 'interfered' => $intf, 'interfered_pct' => $total ? round(100 * $intf / $total, 1) : 0,
             'classes' => $classes, 'operators' => $ops, 'hourly' => $hourly,
-            'from_rsrq' => (int)(array_column($src, 'n', 'src')['r'] ?? 0)];
+            'from_rsrq' => (int)(array_column($src, 'n', 'src')['r'] ?? 0),
+            'severity' => ['severe' => (int)($sev['severe'] ?? 0), 'moderate' => (int)($sev['moderate'] ?? 0), 'mild' => (int)($sev['mild'] ?? 0)]];
     }
 
     /** خريطة مربعات: السبب الغالب ومتوسط تراجع SINR وقدرة التشويش */
@@ -385,7 +387,7 @@ final class Interference
             $q->execute(array_merge($box, $a));
             $all = $q->fetchAll();
             $ext = array_values(array_filter($all, function ($r) { return in_array($r['cls'], ['external', 'unexplained'], true) && $r['ext_dbm'] !== null; }));
-            if (count($ext) < 8) continue;
+            if (count($ext) < 30) continue;   // أقل من ذلك ضجيج إحصائي لا مصدر
             $pts = array_map(function ($r) { return ['lat' => (float)$r['lat'], 'lon' => (float)$r['lon'], 'rsrp' => (float)$r['ext_dbm'], 'ta' => null, 'tech' => null]; }, $ext);
             $e = TowerEstimator::estimate($pts);
             if (!$e) continue;
@@ -452,6 +454,7 @@ final class Interference
             ];
         }
         usort($out, function ($x, $y) { return [$y['confidence'], $y['deg_avg'] * $y['n']] <=> [$x['confidence'], $x['deg_avg'] * $x['n']]; });
+        $out = array_slice($out, 0, 12);
         foreach ($out as $i => &$s) $s['id'] = $i + 1;
         return $out;
     }
