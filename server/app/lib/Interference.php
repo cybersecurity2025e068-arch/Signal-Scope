@@ -10,10 +10,10 @@ declare(strict_types=1);
  *        SINR_exp = 1 / (1/SNR + 1/SINR_max)،   SNR = RSRP − N
  *  3) تراجع SINR بسبب التشويش  deg = SINR_exp − SINR_measured
  *     وقدرة التشويش لكل RE:      I = S/SINR_meas − S/SINR_exp   (تُعرض بوحدة dBm/MHz)
- *     إن غاب SINR يُشتق من RSRQ بفرض حمل 50%:  SINR = 12 / (1/RSRQ − 12·ρ)
- *  4) التشويش المتوقع من الخلايا المجاورة على التردد نفسه (EARFCN):  I_nb = Σ ρ_j·RSRP_j
- *     (ρ = 1 عند تصادم PCI mod 3 لأن الإشارات المرجعية تقع فوق بعضها، و 0.5 لغيرها)
- *     ما لا تفسّره الخلايا المجاورة = تشويش خارجي محتمل.
+ *     إن غاب SINR يُشتق من RSRQ بمنحنى يُعايَر لكل جهاز من قراءاته التي فيها القيمتان معاً
+ *     (وإلا بالعلاقة النظرية بفرض حمل كامل، وهي الأكثر تحفظاً).
+ *  4) التشويش المتوقع من الخلايا المجاورة على التردد نفسه (EARFCN):  I_nb = Σ RSRP_j  (حمل كامل = أسوأ حالة)
+ *     ما لا تفسّره الخلايا المجاورة حتى بحملها الكامل = تشويش خارجي محتمل.
  *  5) التصنيف: نظيف · ضعف تغطية · ازدحام · تداخل خلايا · تصادم PCI · تلوث إشارة · خارجي · غير مفسَّر · مختلط
  *
  * مصادر التشويش الخارجي تُجمَّع في مناطق متجاورة، ويُقدَّر موقعها بملاءمة نموذج تضاؤل القدرة مع المسافة
@@ -22,8 +22,9 @@ declare(strict_types=1);
  */
 final class Interference
 {
-    public const MODEL_VERSION = 1;
-    public const LOAD = 0.5;
+    public const MODEL_VERSION = 2;
+    /** حمل الخلايا المجاورة المفترض: 100% (أسوأ حالة) حتى لا يُنسب إلى «الخارجي» إلا ما لا تفسّره الشبكة حتى في ذروتها */
+    public const NB_LOAD = 1.0;
 
     /** @return array<string,float|int> */
     public static function cfg(): array
@@ -63,7 +64,7 @@ final class Interference
      * @param array<string,mixed> $s قراءة (tech, rsrp, rsrq, sinr, pci, arfcn, neighbors)
      * @return array<string,mixed>|null
      */
-    public static function analyze(array $s, float $sinrMax, array $k): ?array
+    public static function analyze(array $s, float $sinrMax, array $k, ?array $rqMap = null): ?array
     {
         $tech = (string)($s['tech'] ?? '');
         if (($tech !== 'LTE' && $tech !== 'NR') || $s['rsrp'] === null) return null;
@@ -75,11 +76,8 @@ final class Interference
         $sinrExp = self::db(1 / (1 / self::lin($snr) + 1 / self::lin($sinrMax)));
 
         if ($s['sinr'] !== null) { $sm = (float)$s['sinr']; $src = 's'; }
-        elseif ($s['rsrq'] !== null) {
-            $den = 1 / self::lin((float)$s['rsrq']) - 12 * self::LOAD;
-            $sm = $den <= 12 / self::lin($sinrMax) ? $sinrMax : self::db(12 / $den);
-            $src = 'r';
-        } else return null;
+        elseif ($s['rsrq'] !== null) { $sm = min($sinrMax, self::sinrFromRsrq((float)$s['rsrq'], $rqMap)); $src = 'r'; }
+        else return null;
 
         $deg = max(0.0, $sinrExp - $sm);
         $S = self::lin($rsrp);
@@ -102,7 +100,7 @@ final class Interference
                 if ($npci !== null && $npci === $spci) continue;   // الخلية الخادمة نفسها
                 $gap = $rsrp - (float)$nr;
                 $m3 = $npci !== null && $spci !== null && $npci % 3 === $spci % 3;
-                $Inb += ($m3 ? 1.0 : self::LOAD) * self::lin((float)$nr);
+                $Inb += self::NB_LOAD * self::lin((float)$nr);
                 $nCo++;
                 if ($gap <= $k['close_db']) $nClose++;
                 if ($agg === null || $gap < $agg['gap']) $agg = ['pci' => $npci, 'gap' => $gap, 'm3' => $m3];
@@ -119,8 +117,9 @@ final class Interference
         } elseif ($nClose >= $k['pilot_n']) $cls = 'pilot';
         elseif ($agg && $agg['m3'] && $agg['gap'] <= $k['close_db']) $cls = 'mod3';
         elseif ($I > 0 && $Inb >= 0.5 * $I) $cls = 'cochannel';
-        // خارجي: تشويش قوي لا تفسّره المجاورة، مع إشارة خادمة جيدة (عند حافة الخلية قد يأتي التشويش من خلايا بعيدة لا يبلّغ عنها الهاتف)
-        elseif ($deg >= $k['ext_min'] && $hasNb && $rsrp >= $k['ext_rsrp']) $cls = 'external';
+        // خارجي: تشويش قوي لا تفسّر الخلايا المرئية ثلثه حتى بحملها الكامل، مع إشارة خادمة جيدة
+        // (عند حافة الخلية قد يأتي التشويش من خلايا بعيدة لا يبلّغ عنها الهاتف ← «غير مفسَّر»)
+        elseif ($deg >= $k['ext_min'] && $hasNb && $rsrp >= $k['ext_rsrp'] && $Inb <= $I / 3) $cls = 'external';
         elseif ($deg >= $k['ext_min']) $cls = 'unexplained';
         else $cls = 'mixed';
 
@@ -128,6 +127,44 @@ final class Interference
             'i_dbm' => $iDbm === null ? null : round($iDbm, 1), 'nb_dbm' => $nbDbm === null ? null : round($nbDbm, 1),
             'ext_dbm' => $extDbm === null ? null : round($extDbm, 1), 'n_cochan' => min(255, $nCo), 'n_close' => min(255, $nClose),
             'agg_pci' => $agg['pci'] ?? null, 'agg_gap' => $agg === null ? null : round($agg['gap'], 1), 'agg_mod3' => $agg && $agg['m3'] ? 1 : 0];
+    }
+
+    /** SINR من RSRQ: منحنى الجهاز المعايَر (وسيط SINR لكل 1 dB من RSRQ)، وإلا العلاقة النظرية بحمل كامل */
+    public static function sinrFromRsrq(float $rsrq, ?array $map): float
+    {
+        if ($map) {
+            $b = (int)floor($rsrq);
+            for ($d = 0; $d <= 2; $d++) {
+                foreach ([$b - $d, $b + $d] as $x) if (isset($map[(string)$x])) return (float)$map[(string)$x];
+            }
+        }
+        $den = 1 / self::lin($rsrq) - 12;
+        return $den <= 0.01 ? 30.0 : self::db(12 / $den);
+    }
+
+    /**
+     * منحنى RSRQ ← SINR لكل جهاز من قراءاته التي فيها القيمتان (30 قراءة على الأقل لكل 1 dB).
+     * العلاقة النظرية تعتمد على حمل الخلية المجهول، فالمنحنى المقاس من الجهاز نفسه أدق.
+     * @return array<int,array<string,float>>
+     */
+    public static function rsrqMaps(): array
+    {
+        $db = ss_db();
+        $st = $db->prepare("SELECT FLOOR(rsrq) q, sinr FROM samples WHERE device_id = ? AND tech = 'LTE' AND sinr IS NOT NULL AND rsrq IS NOT NULL ORDER BY id DESC LIMIT 40000");
+        $out = [];
+        foreach ($db->query('SELECT id FROM devices')->fetchAll(PDO::FETCH_COLUMN) as $d) {
+            $st->execute([(int)$d]);
+            $bins = [];
+            foreach ($st as $r) $bins[(int)$r['q']][] = (float)$r['sinr'];
+            $m = [];
+            foreach ($bins as $q => $v) {
+                if (count($v) < 30) continue;
+                sort($v);
+                $m[(string)$q] = round($v[intdiv(count($v), 2)], 1);
+            }
+            if (count($m) >= 4) $out[(int)$d] = $m;
+        }
+        return $out;
     }
 
     /**
@@ -168,10 +205,10 @@ final class Interference
             $old = is_array($cal) ? ($cal['caps'] ?? []) : [];
             foreach ($new as $d => $v) if (isset($old[$d]) && abs((float)$old[$d] - $v) > 1.0) $reset = true;
             if (!$old) $reset = true;
-            $cal = ['at' => time(), 'caps' => $new];
+            $cal = ['at' => time(), 'caps' => $new, 'rq' => self::rsrqMaps()];
             @file_put_contents($calF, json_encode($cal));
         }
-        $caps = $cal['caps'] ?? [];
+        $caps = $cal['caps'] ?? []; $rq = $cal['rq'] ?? [];
         if ($reset) {
             $db->exec('DELETE FROM sample_intf');
             @file_put_contents($cf, '0');
@@ -188,7 +225,8 @@ final class Interference
             $rows = [];
             foreach ($batch as $s) {
                 $last = (int)$s['id'];
-                $r = self::analyze($s, (float)($caps[(int)$s['device_id']] ?? $k['sinr_max']), $k);
+                $dv = (int)$s['device_id'];
+                $r = self::analyze($s, (float)($caps[$dv] ?? $k['sinr_max']), $k, $rq[$dv] ?? null);
                 if ($r === null) { $stats['skipped']++; continue; }
                 $rows[] = array_merge([(int)$s['id']], array_values($r));
             }
@@ -341,7 +379,7 @@ final class Interference
             $ys = array_column($cl, 0); $xs = array_column($cl, 1);
             // نوسّع الإطار مربعاً واحداً حول المنطقة حتى تدخل القراءات الأضعف في ملاءمة التضاؤل
             $box = [(min($ys) - 1) * $dLat, (max($ys) + 2) * $dLat, (min($xs) - 1) * $dLon, (max($xs) + 2) * $dLon];
-            $q = ss_db()->prepare("SELECT s.lat, s.lon, s.ts, s.mcc, s.mnc, s.arfcn, s.tech, s.cell_ref, i.cls, i.deg, i.ext_dbm, i.i_dbm
+            $q = ss_db()->prepare("SELECT s.lat, s.lon, s.ts, s.mcc, s.mnc, s.arfcn, s.tech, s.cell_ref, s.session_id, s.device_id, i.cls, i.deg, i.ext_dbm, i.i_dbm
                 FROM sample_intf i JOIN samples s ON s.id = i.sample_id
                 WHERE s.lat BETWEEN ? AND ? AND s.lon BETWEEN ? AND ? AND (s.acc IS NULL OR s.acc <= 50) AND $w LIMIT 20000");
             $q->execute(array_merge($box, $a));
@@ -361,11 +399,17 @@ final class Interference
             }
             sort($eirp);
             $ops = []; $bands = []; $cellsHit = []; $hours = array_fill(0, 24, [0, 0]); $t1 = PHP_INT_MAX; $t2 = 0;
+            $opsSeen = []; $sess = []; $days = []; $devs = [];
             foreach ($all as $r) {
                 $h = (int)floor(fmod($r['ts'] / 1000 + 10800, 86400) / 3600);
                 $isExt = in_array($r['cls'], ['external', 'unexplained'], true);
                 $hours[$h][0]++; if ($isExt) $hours[$h][1]++;
+                $ok = (int)$r['mcc'] . '-' . (int)$r['mnc'];
+                $opsSeen[$ok][0] = ($opsSeen[$ok][0] ?? 0) + 1;
+                $opsSeen[$ok][1] = ($opsSeen[$ok][1] ?? 0) + ($isExt ? 1 : 0);
                 if (!$isExt) continue;
+                $sess[(int)$r['session_id']] = true; $devs[(int)$r['device_id']] = true;
+                $days[gmdate('Ymd', (int)($r['ts'] / 1000) + 10800)] = true;
                 $ops[(int)$r['mcc'] . '-' . (int)$r['mnc']] = true;
                 $fm = Obstacles::freqMHz($r['tech'], $r['arfcn'] === null ? null : (int)$r['arfcn']);
                 $bands[self::bandName($r['tech'], $fm)] = true;
@@ -378,9 +422,22 @@ final class Interference
                 if ($n >= 5) { $measured++; if ($ne / $n >= 0.3) $active++; }
             }
             $pattern = self::pattern($prof, $measured, $active);
-            $type = self::guessType(count($ops), count($bands), $pattern['code']);
+            // مشغّلون قيسوا هنا وبقوا سليمين (أقل من 10% تشويش خارجي): دليل على أن المصدر يخص مشغّلاً بعينه
+            $clean = array_keys(array_filter($opsSeen, function ($v) { return $v[0] >= 20 && $v[1] / $v[0] < 0.1; }));
+            $type = self::guessType(count($ops), count($bands), $pattern['code'], count($clean));
             $degs = array_map(function ($r) { return (float)$r['deg']; }, $ext);
-            $conf = min(100, (int)round(20 * log10(count($ext)) + 10 * min(3, count($cl)) + ($e['method'] === 'pathloss' ? 20 : 0) + (count($ops) > 1 ? 15 : 0)));
+            // الثقة من الأدلة المستقلة، لا من عدد القراءات وحده
+            $fitOk = $e['method'] === 'pathloss' && $e['exponent'] !== null && $e['exponent'] > 1.7 && $e['exponent'] < 4.8 && (float)$e['radius'] <= 600;
+            $ev = [
+                'fit' => $fitOk, 'operators' => count($ops) >= 2, 'days' => count($days) >= 2,
+                'sessions' => count($sess) >= 2 || count($devs) >= 2, 'area' => count($cl) >= 3, 'samples' => count($ext) >= 50,
+            ];
+            $conf = ($fitOk ? 30 : 0) + ($ev['operators'] ? 25 : 0) + ($ev['days'] ? 15 : 0) + ($ev['sessions'] ? 10 : 0) + ($ev['area'] ? 10 : 0) + ($ev['samples'] ? 10 : 0);
+            $need = [];
+            if (!$fitOk) $need[] = 'تحرّك حول المنطقة في عدة اتجاهات: التضاؤل الحالي لا يحدد موقعاً واضحاً (الأس ' . ($e['exponent'] ?? '—') . ').';
+            if (!$ev['operators']) $need[] = $clean ? 'مشغّل آخر قيس هنا وكان سليماً: المصدر يخص هذا المشغّل (تداخل من شبكته أو مقوٍّ لنطاقه)، لا جهاز تشويش عام.' : 'قِس بشريحة مشغّل آخر في المكان نفسه: إن تأثر هو أيضاً فالمصدر خارجي مؤكد.';
+            if (!$ev['days']) $need[] = 'كرر القياس في يوم آخر للتأكد أن المصدر ليس مؤقتاً.';
+            if (!$ev['sessions']) $need[] = 'سجّل جلسة أخرى أو استخدم جهازاً آخر لاستبعاد خلل في الجهاز.';
             $out[] = [
                 'id' => $ci + 1, 'lat' => round($e['lat'], 6), 'lon' => round($e['lon'], 6),
                 'radius_m' => (int)round(min(2000, (float)$e['radius'])), 'method' => $e['method'], 'exponent' => $e['exponent'],
@@ -389,10 +446,12 @@ final class Interference
                 'peak_dbm' => round($peak, 1), 'eirp_dbm' => round($eirp[(int)floor(0.5 * (count($eirp) - 1))], 1),
                 'nearest_m' => (int)round($near), 'operators' => array_keys($ops), 'bands' => array_keys($bands),
                 'cells_affected' => count($cellsHit), 'first' => $t1, 'last' => $t2,
-                'pattern' => $pattern, 'hourly' => $prof, 'type' => $type, 'confidence' => $conf,
+                'pattern' => $pattern, 'hourly' => $prof, 'type' => $type, 'confidence' => $conf, 'evidence' => $ev, 'need' => $need,
+                'status' => $conf >= 60 ? 'likely' : 'candidate', 'ops_clean' => $clean,
+                'sessions' => count($sess), 'days' => count($days), 'devices' => count($devs),
             ];
         }
-        usort($out, function ($x, $y) { return $y['deg_avg'] * $y['n'] <=> $x['deg_avg'] * $x['n']; });
+        usort($out, function ($x, $y) { return [$y['confidence'], $y['deg_avg'] * $y['n']] <=> [$x['confidence'], $x['deg_avg'] * $x['n']]; });
         foreach ($out as $i => &$s) $s['id'] = $i + 1;
         return $out;
     }
@@ -422,8 +481,10 @@ final class Interference
         return ['code' => 'intermittent', 'text' => 'متقطع: يظهر في بعض الساعات دون نمط واضح. يتوافق مع معدات كهربائية تعمل وتتوقف، أو مصدر متنقل.'];
     }
 
-    private static function guessType(int $ops, int $bands, string $pattern): array
+    private static function guessType(int $ops, int $bands, string $pattern, int $clean = 0): array
     {
+        if ($ops === 1 && $bands >= 2) return ['code' => 'network', 'title' => 'تشويش على عدة نطاقات لمشغّل واحد',
+            'why' => 'أصاب نطاقات مشغّل واحد فقط' . ($clean ? '، وبقي مشغّل آخر قيس هنا سليماً' : '') . '. الأرجح تداخل من خلايا المشغّل نفسه لا يراها الهاتف في شبكة مزدحمة، أو مقوٍّ متعدد النطاقات لهذا المشغّل. جهاز التشويش العام يصيب كل المشغّلين.'];
         if ($ops >= 2 && $bands >= 2) return ['code' => 'jammer', 'title' => 'جهاز تشويش واسع النطاق (Jammer) مرجّح',
             'why' => 'التشويش يصيب أكثر من مشغّل وأكثر من نطاق ترددي في المكان نفسه، وشبكات المشغّلين لا تتداخل فيما بينها لأنها على ترددات مختلفة.'];
         if ($ops >= 2) return ['code' => 'wideband', 'title' => 'مصدر واسع النطاق يصيب عدة مشغّلين',
@@ -525,7 +586,8 @@ final class Interference
         return ['analyzed' => (int)$db->query('SELECT COUNT(*) FROM sample_intf')->fetchColumn(),
             'eligible' => (int)$db->query("SELECT COUNT(*) FROM samples WHERE tech IN ('LTE','NR') AND rsrp IS NOT NULL AND (sinr IS NOT NULL OR rsrq IS NOT NULL)")->fetchColumn(),
             'with_neighbors' => (int)$db->query("SELECT COUNT(*) FROM samples WHERE tech IN ('LTE','NR') AND neighbors IS NOT NULL")->fetchColumn(),
-            'sinr_caps' => is_array($cal) ? ($cal['caps'] ?? []) : [], 'model' => self::MODEL_VERSION, 'config' => self::cfg()];
+            'sinr_caps' => is_array($cal) ? ($cal['caps'] ?? []) : [],
+            'rsrq_maps' => is_array($cal) ? array_map('count', $cal['rq'] ?? []) : [], 'model' => self::MODEL_VERSION, 'config' => self::cfg()];
     }
 
     /** تصدير القراءات المحللة CSV */

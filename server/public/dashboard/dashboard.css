@@ -92,6 +92,10 @@ tr.click:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent
 .srcbox { border: 1.5px solid #dc262655; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; background: #dc26260a; }
 .tiles.mini { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
 .tiles.mini .tile b { font-size: 17px; }
+.evid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.evid span { font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line); }
+.evid .ok { color: #15803d; border-color: #16a34a66; background: #16a34a14; }
+.evid .no { color: var(--muted); }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; }
 .catalog { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
 .catitem { border: 1px solid var(--line); border-inline-start: 5px solid; border-radius: 10px; padding: 10px 12px; }

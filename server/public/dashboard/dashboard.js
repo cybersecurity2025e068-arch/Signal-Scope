@@ -462,7 +462,7 @@
       $("iTiles").innerHTML = `
         <div class="tile"><span>قراءات مشوَّشة</span><b style="color:${sm.interfered_pct >= 20 ? "#dc2626" : "inherit"}">${fmt(sm.interfered_pct, 1)}%</b><small>${fmt(sm.interfered)} قراءة</small></div>
         <div class="tile"><span>متوسط تراجع SINR فيها</span><b>${intfDeg[1] ? fmt(intfDeg[0] / intfDeg[1], 1) : "—"}</b><small>dB</small></div>
-        <div class="tile"><span>مصادر خارجية</span><b style="color:${sr.sources.length ? "#dc2626" : "inherit"}">${fmt(sr.sources.length)}</b></div>
+        <div class="tile"><span>مصادر خارجية مرجّحة</span><b style="color:${sr.sources.some(x => x.status === "likely") ? "#dc2626" : "inherit"}">${fmt(sr.sources.filter(x => x.status === "likely").length)}</b><small>+ ${fmt(sr.sources.filter(x => x.status !== "likely").length)} مرشّح</small></div>
         <div class="tile"><span>خلايا مسببة للتداخل</span><b>${fmt(ag.aggressors.length)}</b></div>
         <div class="tile"><span>تصادمات PCI</span><b>${fmt(ag.pci_conflicts.length)}</b></div>
         <div class="tile"><span>ازدحام / ضعف تغطية</span><b>${fmt((C.load || {}).pct || 0, 0)}% / ${fmt((C.coverage || {}).pct || 0, 0)}%</b></div>`;
@@ -489,7 +489,7 @@
       if (first && gj.features.length) { fit(m, gj.features.flatMap(f => f.geometry.coordinates[0]), 15); first = false; }
       // المصادر
       $("iSrc").innerHTML = sr.sources.length ? sr.sources.map(s => `<div class="srcbox">
-          <div class="row spread"><h4 style="margin:0">مصدر ${s.id}: ${esc(s.type.title)}</h4><span class="sev ${s.confidence >= 60 ? "high" : "medium"}">ثقة ${s.confidence}%</span></div>
+          <div class="row spread"><h4 style="margin:0">${s.status === "likely" ? "مصدر" : "مصدر مرشّح"} ${s.id}: ${esc(s.type.title)}</h4><span class="sev ${s.status === "likely" ? "high" : "medium"}">${s.status === "likely" ? "مرجّح" : "يحتاج تأكيداً"} · ثقة ${s.confidence}%</span></div>
           <p class="note" style="margin:4px 0 10px">${esc(s.type.why)}</p>
           <div class="tiles mini">
             <div class="tile"><span>الموقع المقدَّر</span><b>${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</b><small>± ${km(s.radius_m)}</small></div>
@@ -502,6 +502,10 @@
           <p style="margin:0 0 4px"><b>النمط الزمني:</b> ${esc(s.pattern.text)}</p>
           ${hourBars(s.hourly)}
           <p class="note" style="margin:6px 0">أول رصد ${dt(s.first)} · آخر رصد ${dt(s.last)} · أقرب قراءة على بعد ${km(s.nearest_m)} من الموقع المقدَّر · أس التضاؤل ${s.exponent ?? "—"}</p>
+          <div class="evid">${[["fit", "الموقع محدد بتضاؤل واضح"], ["operators", "أكثر من مشغّل متأثر"], ["days", "رُصد في أكثر من يوم"], ["sessions", "أكثر من جلسة أو جهاز"], ["area", "يغطي 3 مربعات أو أكثر"], ["samples", "50 قراءة أو أكثر"]]
+            .map(([k, l]) => `<span class="${s.evidence[k] ? "ok" : "no"}">${s.evidence[k] ? "✓" : "✗"} ${l}</span>`).join("")}</div>
+          ${s.need.length ? `<p style="margin:8px 0 4px"><b>لتأكيد المصدر:</b></p><ul style="margin:0">${s.need.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+          <p class="note" style="margin:6px 0">${s.sessions} جلسة · ${s.days} يوم · ${s.devices} جهاز${s.ops_clean.length ? ` · سليم هنا: ${opsOf(s.ops_clean)}` : ""}</p>
           <details><summary><b>خطوات العلاج</b></summary><ol>${(CAT.external.fix || []).map(x => `<li>${esc(x)}</li>`).join("")}</ol></details>
           <div class="row noprint" style="margin-top:8px"><button class="btn sm" data-fly="${s.lon},${s.lat}" type="button">عرض على الخريطة</button>
             <a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}">فتح في خرائط Google للبحث الميداني</a></div>
@@ -526,11 +530,12 @@
       $("iHow").innerHTML = `<ol>
         <li><b>الضوضاء الحرارية</b> لكل عنصر مورد: ${bd("−174 + 10·log₁₀(15 kHz) + NF")} ≈ ${bd(fmt(-174 + 41.76 + c.nf, 1) + " dBm")} (NF = ${c.nf} dB).</li>
         <li><b>SINR المتوقع</b> بلا تشويش من قوة الإشارة RSRP، مع سقف أداء المستقبِل الذي يُعايَر لكل جهاز من قراءاته القوية (المئين 95 عند RSRP أعلى من −90 dBm).</li>
-        <li><b>تراجع SINR</b> = المتوقع − المقاس. يُعدّ تشويشاً إن بلغ ${c.deg_min} dB. <b>قدرة التشويش</b> = ${bd("S/SINR_meas − S/SINR_exp")} بوحدة dBm/MHz. إن غاب SINR يُشتق من RSRQ بفرض حمل 50%.</li>
-        <li><b>التشويش المتوقع من الخلايا المجاورة</b> على التردد نفسه = مجموع قدراتها × الحمل (100% عند تصادم PCI mod 3 لأن الإشارات المرجعية تتطابق، و50% لغيرها). ما يزيد على ذلك = <b>خارجي</b>.</li>
+        <li><b>تراجع SINR</b> = المتوقع − المقاس. يُعدّ تشويشاً إن بلغ ${c.deg_min} dB. <b>قدرة التشويش</b> = ${bd("S/SINR_meas − S/SINR_exp")} بوحدة dBm/MHz. إن غاب SINR يُشتق من RSRQ بمنحنى يُعايَر لكل جهاز من قراءاته التي فيها القيمتان معاً (وإلا بالعلاقة النظرية بحمل كامل، وهي الأكثر تحفظاً).</li>
+        <li><b>التشويش المتوقع من الخلايا المجاورة</b> على التردد نفسه = مجموع قدراتها بحمل كامل (أسوأ حالة)، فلا يُنسب إلى الخارج إلا ما لا تفسّره الشبكة حتى في ذروتها. يُعدّ <b>خارجياً</b> إن لم تفسّر المجاورة ثلثه.</li>
         <li><b>التصنيف</b>: تلوث إشارة عند ${c.pilot_n}+ خلايا ضمن ${c.close_db} dB · تصادم mod 3 · تداخل خلايا حين تفسّر المجاورة نصف التشويش أو أكثر · خارجي حين يبلغ التراجع ${c.ext_min} dB ولا تفسّره المجاورة والإشارة الخادمة ${bd("≥ " + c.ext_rsrp + " dBm")} (وإلا «غير مفسَّر» لأن حافة الخلية تتأثر بخلايا بعيدة غير مرئية) · ازدحام حين يكون SINR جيداً و RSRQ ≤ −14 dB.</li>
         <li><b>موقع المصدر الخارجي</b>: تُجمع المربعات المتجاورة ذات التشويش الخارجي، ويُلاءم نموذج تضاؤل القدرة ${bd("P = A − 10·n·log₁₀(d)")} بحثاً شبكياً (طريقة تقدير الأبراج نفسها). <b>القوة المكافئة</b> = القدرة المستلمة + فقد الفضاء الحر حتى الموقع (حد أدنى، لأن المباني تزيد الفقد).</li>
-        <li><b>نوع المصدر</b>: عدة مشغّلين وعدة نطاقات ← جهاز تشويش؛ مشغّل واحد ودائم ← مقوٍّ غير مرخص؛ غير ذلك ← معدات كهربائية أو PIM.</li></ol>
+        <li><b>نوع المصدر</b>: عدة مشغّلين وعدة نطاقات ← جهاز تشويش؛ عدة نطاقات لمشغّل واحد ← تداخل من شبكته غالباً؛ نطاق واحد ودائم ← مقوٍّ غير مرخص؛ غير ذلك ← معدات كهربائية أو PIM.</li>
+        <li><b>الثقة</b> من أدلة مستقلة: وضوح التضاؤل حول الموقع (30)، تأثر أكثر من مشغّل (25)، الرصد في أكثر من يوم (15)، أكثر من جلسة أو جهاز (10)، المساحة (10)، عدد القراءات (10). المصدر «مرجّح» من 60%.</li></ol>
         <p>النتائج <b>تقديرية</b> من قياسات الهاتف، ولا يرى الهاتف تشويش الوصلة الصاعدة (من الهاتف إلى البرج) الذي تسببه المقويات عادة. لتأكيد المصدر ميدانياً استخدم محلل طيف وهوائياً اتجاهياً، وتُنسَّق إزالة المصادر غير المرخصة مع هيئة الإعلام والاتصالات.</p>`;
     }
     ["iOp", "iDays"].forEach(id => $(id).onchange = () => load().catch(e => toast(e.message)));

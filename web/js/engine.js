@@ -651,7 +651,7 @@
      INTERFERENCE ISOLATION (same model as the server, Interference.php)
      N per RE = −174 + 10log(SCS) + NF; SINR_exp = 1/(1/SNR + 1/SINR_max);
      degradation = SINR_exp − SINR; I = S/SINR − S/SINR_exp; co-channel
-     neighbours explain ρ·RSRP each (ρ = 1 on PCI mod-3 collision, else 0.5).
+     neighbours explain their full RSRP (worst-case full load).
      --------------------------------------------------------------- */
   const INTF_LABELS = { clean: "إشارة نظيفة", coverage: "ضعف تغطية", load: "ازدحام الخلية", cochannel: "تداخل خلايا مجاورة", mod3: "تصادم PCI mod 3",
     pilot: "تلوث الإشارة", external: "تشويش خارجي", unexplained: "تشويش غير مفسَّر", mixed: "تشويش مختلط" };
@@ -663,7 +663,7 @@
     const sinrExp = lin2db(1 / (1 / db2lin(snr) + 1 / db2lin(sinrMax)));
     let sm, src;
     if (isNum(s.sinr)) { sm = s.sinr; src = "sinr"; }
-    else if (isNum(s.rsrq)) { const den = 1 / db2lin(s.rsrq) - 6; sm = den <= 12 / db2lin(sinrMax) ? sinrMax : lin2db(12 / den); src = "rsrq"; }
+    else if (isNum(s.rsrq)) { const den = 1 / db2lin(s.rsrq) - 12; sm = Math.min(sinrMax, den <= 0.01 ? 30 : lin2db(12 / den)); src = "rsrq"; }
     else return null;
     const deg = Math.max(0, sinrExp - sm), S = db2lin(s.rsrp), I = S / db2lin(sm) - S / db2lin(sinrExp), perMHz = 10 * log10(1000 / scs);
     let Inb = 0, nClose = 0, agg = null; const co = [];
@@ -672,7 +672,7 @@
       if (n.tech && n.tech !== s.tech) continue;
       if (!isNum(nf2) || nf2 !== arfcn || !isNum(n.rsrp) || (isNum(n.pci) && n.pci === s.pci)) continue;
       const gap = s.rsrp - n.rsrp, m3 = isNum(n.pci) && isNum(s.pci) && n.pci % 3 === s.pci % 3;
-      Inb += (m3 ? 1 : 0.5) * db2lin(n.rsrp); co.push(n);
+      Inb += db2lin(n.rsrp); co.push(n);
       if (gap <= 6) nClose++;
       if (!agg || gap < agg.gap) agg = { pci: n.pci, gap, m3 };
     }
@@ -682,7 +682,7 @@
     else if (nClose >= 3) cls = "pilot";
     else if (agg && agg.m3 && agg.gap <= 6) cls = "mod3";
     else if (I > 0 && Inb >= 0.5 * I) cls = "cochannel";
-    else if (deg >= 6) cls = hasNb && s.rsrp >= -105 ? "external" : "unexplained";
+    else if (deg >= 6) cls = hasNb && s.rsrp >= -105 && Inb <= I / 3 ? "external" : "unexplained";
     else cls = "mixed";
     const ext = I - Inb;
     return { cls, label: INTF_LABELS[cls], src, sinrExp: +sinrExp.toFixed(1), sinr: +sm.toFixed(1), deg: +deg.toFixed(1),
