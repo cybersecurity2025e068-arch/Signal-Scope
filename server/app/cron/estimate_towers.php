@@ -71,9 +71,14 @@ if ($key !== '' && function_exists('curl_init')) {
     }
 }
 
+// تنبيهات التدهور (مرة كل ساعة على الأكثر)
+$alerts = null;
+try { $alerts = Alerts::scanIfDue(); } catch (Throwable $ex) { $alerts = ['error' => $ex->getMessage()]; }
+ss_cron_mark('estimate');
+
 // تحليل العوائق في الوقت المتبقي
 $obs = [];
 $olog = [];
 try { $obs = Obstacles::run(max(10.0, $budget + 30 - (microtime(true) - $t0)), $olog); }
 catch (Throwable $ex) { $olog[] = 'obstacles error: ' . $ex->getMessage(); }
-printf("estimated=%d ocid=%d obstacles=%s time=%.1fs\n%s\n", $done, $ocid, json_encode($obs), microtime(true) - $t0, implode("\n", $olog));
+printf("estimated=%d ocid=%d alerts=%s obstacles=%s time=%.1fs\n%s\n", $done, $ocid, json_encode($alerts), json_encode($obs), microtime(true) - $t0, implode("\n", $olog));

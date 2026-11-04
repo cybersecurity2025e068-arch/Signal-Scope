@@ -140,8 +140,9 @@
       if (p === page || (p === "sessions" && page === "session") || (p === "cells" && page === "cell")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
     });
     V().innerHTML = `<div class="empty">جارٍ التحميل…</div>`;
+    refreshAlertBadge();
     try {
-      const fn = { overview, sessions, session, coverage, cells, cell, obstacles, compare, devices, settings }[page] || overview;
+      const fn = { overview, sessions, session, coverage, cells, cell, obstacles, compare, alerts, devices, settings }[page] || overview;
       await fn(id);
     } catch (e) { V().innerHTML = `<div class="card"><p class="err">${esc(e.message)}</p></div>`; }
   }
@@ -159,6 +160,7 @@
         <div class="tile"><span>قراءات آخر 24 ساعة</span><b>${fmt(o.samples_24h)}</b></div>
         <div class="tile"><span>الخلايا المكتشفة</span><b>${fmt(o.cells)}</b></div>
         <div class="tile"><span>خلايا قُدّر موقعها</span><b>${fmt(o.cells_located)}</b></div>
+        <a class="tile" href="#/alerts" style="text-decoration:none;color:inherit;${o.alerts_open ? "border-color:#dc2626" : ""}"><span>تنبيهات مفتوحة</span><b style="${o.alerts_open ? "color:#dc2626" : ""}">${fmt(o.alerts_open || 0)}</b></a>
       </div>
       <div class="grid g2" style="margin-top:14px">
         <div class="card"><h3>المشغّلون</h3><div class="tablewrap"><table><tr><th>المشغّل</th><th>MCC-MNC</th><th>الخلايا</th><th>القراءات</th></tr>
@@ -402,6 +404,52 @@
     await load();
   }
 
+  // ------------------------------------------------------------------ degradation alerts
+  async function refreshAlertBadge() {
+    try { const r = await api("v1/alerts?status=open"); const b = $("navAlerts"); b.textContent = r.open; b.hidden = !r.open; } catch (_) { }
+  }
+  async function alerts() {
+    let which = localGet("alerts_view") || "open";
+    V().innerHTML = `<div class="row spread" style="margin-bottom:6px"><h1>تنبيهات تدهور الإشارة</h1>
+        <div class="row noprint"><button class="btn sm" id="aScan" type="button">فحص الآن</button></div></div>
+      <p class="muted" style="margin-top:0" id="aHow"></p>
+      <div class="row noprint" id="aTabs" style="margin-bottom:10px"><button class="btn sm" data-w="open" type="button">المفتوحة</button><button class="btn sm" data-w="resolved" type="button">المُعالَجة</button><button class="btn sm" data-w="all" type="button">الكل</button></div>
+      <div class="grid g2"><div class="card span2"><div class="map short" id="aMap"></div>
+        <div class="legend"><span><i style="background:#dc2626"></i>خطورة عالية</span><span><i style="background:#d97706"></i>متوسطة</span><span><i style="background:#64748b"></i>اطُّلع عليه</span><span><i style="background:#16a34a"></i>عولج</span></div></div>
+      <div class="card span2"><div class="tablewrap" id="aList"></div></div></div>`;
+    const m = await makeMap($("aMap"));
+    m.addSource("a", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    m.addLayer({ id: "a", type: "circle", source: "a", paint: { "circle-radius": ["case", ["==", ["get", "sev"], "high"], 11, 8],
+      "circle-color": ["match", ["get", "st"], "ack", "#64748b", "resolved", "#16a34a", ["match", ["get", "sev"], "high", "#dc2626", "#d97706"]],
+      "circle-stroke-color": "#fff", "circle-stroke-width": 2, "circle-opacity": 0.9 } });
+    popupOn(m, "a", p => `<b>${esc(p.reason)}</b><br>${esc(p.op)} · ${p.nb} قراءة سابقة / ${p.nr} حديثة`);
+    async function load() {
+      $("aTabs").querySelectorAll("button").forEach(b => b.classList.toggle("primary", b.dataset.w === which));
+      const r = await api("v1/alerts?status=" + which), c = r.config;
+      $("aHow").innerHTML = `يقارن النظام كل مربع (${c.size} م) ولكل مشغّل: <b>آخر ${c.recent_days} أيام</b> مقابل <b>${c.base_days} يوماً قبلها</b> في المكان نفسه، ويُطلق تنبيهاً عند تراجع RSRP ${c.drop_db} dB أو SINR ${c.sinr_db} dB أو زيادة الانقطاع ${c.nosvc_pts} نقاط، بشرط ${c.min_samples ?? c.min_n} قراءات على الأقل في كل فترة. الفحص تلقائي كل ساعة.`;
+      const stLabel = { open: "مفتوح", ack: "اطُّلع عليه", resolved: "عولج" };
+      const rows = r.alerts;
+      m.getSource("a").setData({ type: "FeatureCollection", features: rows.map(a => ({ type: "Feature", geometry: { type: "Point", coordinates: [a.lon, a.lat] },
+        properties: { sev: a.severity, st: a.status, reason: a.reason, op: opName(a.mcc, a.mnc), nb: a.n_base, nr: a.n_recent } })) });
+      if (rows.length) fit(m, rows.map(a => [a.lon, a.lat]), 15);
+      $("aList").innerHTML = rows.length ? `<table><tr><th>الخطورة</th><th>السبب</th><th>المشغّل</th><th>الموقع</th><th>القراءات (سابقة/حديثة)</th><th>منذ</th><th>الحالة</th><th></th></tr>
+        ${rows.map(a => `<tr class="click" data-ll="${a.lon},${a.lat}"><td><span class="sev ${a.severity}">${a.severity === "high" ? "عالية" : "متوسطة"}</span></td><td style="white-space:normal">${esc(a.reason)}</td>
+          <td>${esc(opName(a.mcc, a.mnc))}</td><td class="n">${a.lat.toFixed(4)}, ${a.lon.toFixed(4)}</td><td class="n">${a.n_base} / ${a.n_recent}</td>
+          <td>${esc(new Date(a.first_seen.replace(" ", "T") + "Z").toLocaleDateString("ar-IQ"))}</td><td><span class="sev ${a.status === "open" ? a.severity : a.status}">${stLabel[a.status] || a.status}</span></td>
+          <td>${a.status === "open" ? `<button class="btn sm" data-ack="${a.id}" type="button">تم الاطلاع</button>` : ""}</td></tr>`).join("")}</table>`
+        : `<div class="empty">${which === "open" ? "لا توجد تنبيهات مفتوحة. التنبيهات تحتاج قياسات في المكان نفسه خلال فترتين: الأسابيع السابقة وآخر أسبوع." : "لا توجد تنبيهات"}</div>`;
+      $("aList").querySelectorAll("tr[data-ll]").forEach(tr => tr.onclick = e => { if (e.target.closest("button")) return; m.flyTo({ center: tr.dataset.ll.split(",").map(Number), zoom: 16 }); });
+      $("aList").querySelectorAll("button[data-ack]").forEach(b => b.onclick = async () => { await api(`v1/alerts/${b.dataset.ack}/ack`, { method: "POST" }); toast("سُجّل الاطلاع"); load(); refreshAlertBadge(); });
+    }
+    $("aTabs").querySelectorAll("button").forEach(b => b.onclick = () => { which = b.dataset.w; localSet("alerts_view", which); load(); });
+    $("aScan").onclick = async () => {
+      $("aScan").disabled = true;
+      try { const r = await api("v1/alerts/scan", { method: "POST" }); const s = r.scan; toast(`قورن ${s.compared} مربعاً: جديد ${s.opened}، عولج ${s.resolved}`); load(); refreshAlertBadge(); }
+      catch (e) { toast(e.message); } finally { $("aScan").disabled = false; }
+    };
+    await load();
+  }
+
   // ------------------------------------------------------------------ comparison reports
   const CMP_A = "#0284C7", CMP_B = "#D97706";
   const CMP_MODES = {
@@ -582,11 +630,20 @@
       <div class="card"><h3>العرض والجلسة</h3><div class="grid">
         <label class="f">السمة<select class="sel" id="sTheme"><option value="light">نهاري (ذهبي)</option><option value="dark">ليلي (كحلي)</option></select></label>
         <button class="btn" id="bOut" type="button">تسجيل الخروج</button></div></div>
+      <div class="card span2"><div class="row spread"><h3 style="margin:0">النسخ الاحتياطي لقاعدة البيانات</h3><button class="btn sm" id="bkRun" type="button">نسخة الآن</button></div>
+        <p class="note">نسخة يومية تلقائية مضغوطة خارج public_html، ويُحتفظ بآخر 7 نسخ. الاستعادة: phpMyAdmin ← Import ← اختر الملف. لا تُنسخ المباني ونتائج تحليل العوائق لأن النظام يعيد بناءها.</p>
+        <div class="tablewrap" id="bkList"><div class="empty">جارٍ التحميل…</div></div></div>
       <div class="card span2"><h3>المهام المجدولة (cPanel ← Cron Jobs)</h3><p class="note">تقدير مواقع الأبراج يعمل كل 15 دقيقة، والتنظيف مرة يومياً. الأوامر في ملف README ضمن المستودع.</p></div></div>`;
     $("sTheme").value = window.AMU ? AMU.get() : (localGet("theme") || "light");
     $("sTheme").onchange = e => { if (window.AMU) AMU.set(e.target.value); else { localSet("theme", e.target.value); applyTheme(); } };
     $("pwForm").onsubmit = async e => { e.preventDefault(); try { await api("v1/admin/password", { method: "POST", body: { current: $("pCur").value, new: $("pNew").value } }); toast("تم تغيير كلمة المرور"); e.target.reset(); } catch (err) { toast(err.message); } };
     $("bOut").onclick = async () => { await api("v1/admin/logout", { method: "POST" }); showAuth(false); };
+    const loadBk = async () => {
+      const r = await api("v1/backups");
+      $("bkList").innerHTML = r.backups.length ? `<table><tr><th>النسخة</th><th>الحجم</th><th>التاريخ</th><th></th></tr>${r.backups.map(b => `<tr><td class="n">${esc(b.name)}</td><td class="n">${fmt(b.size / 1024, 0)} KB</td><td>${new Date(b.at).toLocaleString("ar-IQ")}</td><td><a class="btn sm" href="${apiUrl("v1/backups/" + b.name)}">تحميل</a></td></tr>`).join("")}</table>` : `<div class="empty">لا توجد نسخ بعد. أول نسخة تلقائية الليلة، أو اضغط «نسخة الآن».</div>`;
+    };
+    $("bkRun").onclick = async () => { $("bkRun").disabled = true; try { const r = await api("v1/backups/run", { method: "POST" }); toast(`أُنشئت ${r.name}`); await loadBk(); } catch (e) { toast(e.message); } finally { $("bkRun").disabled = false; } };
+    loadBk().catch(e => { $("bkList").innerHTML = `<p class="err">${esc(e.message)}</p>`; });
   }
 
   // ------------------------------------------------------------------ boot

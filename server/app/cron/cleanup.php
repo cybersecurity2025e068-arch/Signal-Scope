@@ -21,4 +21,8 @@ $db->prepare('DELETE FROM login_fail WHERE ts < ?')->execute([time() - 86400]);
 if ($total > 0) {
     $db->exec('UPDATE sessions s LEFT JOIN (SELECT session_id, COUNT(*) c FROM samples GROUP BY session_id) t ON t.session_id = s.id SET s.sample_count = COALESCE(t.c, 0)');
 }
+// نسخة احتياطية يومية لقاعدة البيانات
+try { $b = Backup::run(); echo 'backup=' . $b['name'] . ' ' . round($b['size'] / 1024) . "KB\n"; }
+catch (Throwable $e) { echo 'backup error: ' . $e->getMessage() . "\n"; }
+ss_cron_mark('cleanup');
 echo "deleted=$total\n";

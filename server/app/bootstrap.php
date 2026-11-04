@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const SS_VERSION = '1.5.0';
+const SS_VERSION = '1.6.0';
 
 define('SS_APP_DIR', __DIR__);
 require SS_APP_DIR . '/lib/Http.php'; // يحوي HttpError أيضاً
@@ -38,6 +38,15 @@ function ss_db(bool $reconnect = false): PDO
         $pdo->exec("SET time_zone = '+00:00'");
     }
     return $pdo;
+}
+
+/** يسجّل آخر تشغيل لمهمة cron (للتحقق من أن المهام المجدولة تعمل) */
+function ss_cron_mark(string $job): void
+{
+    $f = SS_APP_DIR . '/data/last-cron.json';
+    $j = is_file($f) ? (json_decode((string)file_get_contents($f), true) ?: []) : [];
+    $j[$job] = gmdate('c');
+    @file_put_contents($f, json_encode($j));
 }
 
 /** يعيد اتصالاً صالحاً: الاستضافة تغلق الاتصال الخامل بسرعة (MySQL server has gone away) */

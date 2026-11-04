@@ -96,6 +96,7 @@
     th.addEventListener("click", function () { if (window.AMU) AMU.toggle(); paintTheme(); });
     window.addEventListener("amu-theme", paintTheme); paintTheme();
     document.body.insertBefore(el, document.body.firstChild);
+    document.documentElement.classList.add("amu-has-sub");
     var setH = function () { document.documentElement.style.setProperty("--amu-sub-h", el.offsetHeight + "px"); };
     setH(); window.addEventListener("resize", setH);
     if (window.ResizeObserver) new ResizeObserver(setH).observe(el);

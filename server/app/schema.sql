@@ -149,3 +149,34 @@ CREATE TABLE IF NOT EXISTS sample_loss (
   terrain_ok  TINYINT(1) NOT NULL DEFAULT 0,
   KEY k_cell (cell_ref)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+;
+
+-- ===== تنبيهات تدهور الإشارة (منطقة × مشغّل: آخر 7 أيام مقابل 28 يوماً قبلها) =====
+CREATE TABLE IF NOT EXISTS alerts (
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  akey         VARCHAR(64)  NOT NULL,
+  mcc          SMALLINT UNSIGNED NULL,
+  mnc          SMALLINT UNSIGNED NULL,
+  lat          DOUBLE NOT NULL,
+  lon          DOUBLE NOT NULL,
+  size_m       SMALLINT UNSIGNED NOT NULL,
+  severity     VARCHAR(8)   NOT NULL,
+  reason       VARCHAR(255) NOT NULL,
+  base_rsrp    FLOAT NULL,
+  recent_rsrp  FLOAT NULL,
+  delta_rsrp   FLOAT NULL,
+  base_sinr    FLOAT NULL,
+  recent_sinr  FLOAT NULL,
+  base_nosvc   FLOAT NULL,
+  recent_nosvc FLOAT NULL,
+  n_base       INT UNSIGNED NOT NULL,
+  n_recent     INT UNSIGNED NOT NULL,
+  status       VARCHAR(12)  NOT NULL DEFAULT 'open',
+  first_seen   DATETIME NOT NULL,
+  last_seen    DATETIME NOT NULL,
+  resolved_at  DATETIME NULL,
+  ack_at       DATETIME NULL,
+  ack_by       VARCHAR(64) NULL,
+  UNIQUE KEY uq_key (akey),
+  KEY k_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

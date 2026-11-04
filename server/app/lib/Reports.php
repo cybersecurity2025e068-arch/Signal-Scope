@@ -34,6 +34,7 @@ final class Reports
             'operators'      => array_map(fn($r) => array_map('intval', $r),
                 $db->query('SELECT mcc, mnc, COUNT(*) cells, COALESCE(SUM(sample_count), 0) samples FROM cells GROUP BY mcc, mnc ORDER BY samples DESC')->fetchAll()),
             'version'        => SS_VERSION,
+            'alerts_open'    => Alerts::openCount(),
         ];
     }
 

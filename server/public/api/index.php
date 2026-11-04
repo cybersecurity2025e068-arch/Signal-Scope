@@ -125,6 +125,8 @@ try {
             $doc = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
             Http::json(['ok' => true, 'nav' => ($_GET['mode'] ?? '') === 'revert' ? AmuLink::revertNav($doc) : AmuLink::applyNav($doc)]);
         }
+        if ($method === 'POST' && ($_GET['action'] ?? '') === 'backup') Http::json(Backup::run());
+        if ($method === 'POST' && ($_GET['action'] ?? '') === 'alerts') Http::json(['scan' => Alerts::scan(), 'open' => Alerts::openCount()]);
         if (($_GET['action'] ?? '') === 'diag') {   // إحصاءات مجمعة للتحقق من التحليل (بلا بيانات شخصية)
             $db = ss_db();
             $rows = function (string $sql) use ($db) { return $db->query($sql)->fetchAll(); };
@@ -146,7 +148,9 @@ try {
             'counts' => ['devices' => $q('SELECT COUNT(*) FROM devices'), 'sessions' => $q('SELECT COUNT(*) FROM sessions'),
                          'samples' => $q('SELECT COUNT(*) FROM samples'), 'cells' => $q('SELECT COUNT(*) FROM cells'),
                          'cells_located' => $q("SELECT COUNT(*) FROM cells WHERE est_lat IS NOT NULL AND est_method <> 'insufficient'")],
-            'obstacles' => Obstacles::status() + ['summary' => Obstacles::summary('1=1', [])]]);
+            'obstacles' => Obstacles::status() + ['summary' => Obstacles::summary('1=1', [])],
+            'cron' => is_file(SS_APP_DIR . '/data/last-cron.json') ? json_decode((string)file_get_contents(SS_APP_DIR . '/data/last-cron.json'), true) : null,
+            'alerts_open' => Alerts::openCount(), 'backups' => array_slice(Backup::list(), 0, 3)]);
     }
 
     // ---------- المدير ----------
@@ -242,6 +246,16 @@ try {
         $b = Http::body(64_000);
         Http::json(Compare::run((array)($b['a'] ?? []), (array)($b['b'] ?? []), (array)($b['shared'] ?? [])));
     }
+
+    // ---------- تنبيهات التدهور ----------
+    if ($path === '/v1/alerts') Http::json(['alerts' => Alerts::list((string)($_GET['status'] ?? 'open')), 'config' => Alerts::cfg(), 'open' => Alerts::openCount()]);
+    if ($path === '/v1/alerts/scan' && $method === 'POST') Http::json(['ok' => true, 'scan' => Alerts::scan(), 'open' => Alerts::openCount()]);
+    if (preg_match('#^/v1/alerts/(\d+)/ack$#', $path, $m) && $method === 'POST') { Alerts::ack((int)$m[1], (string)($_SESSION['admin_user'] ?? 'admin')); Http::json(['ok' => true]); }
+
+    // ---------- النسخ الاحتياطي ----------
+    if ($path === '/v1/backups') Http::json(['backups' => Backup::list()]);
+    if ($path === '/v1/backups/run' && $method === 'POST') Http::json(Backup::run());
+    if (preg_match('#^/v1/backups/(signalscope-[0-9]{8}-[0-9]{6}\.sql\.gz)$#', $path, $m)) Backup::send($m[1]);
 
     if ($path === '/v1/obstacles') Http::json(Obstacles::grid($_GET));
     if ($path === '/v1/obstacles/status') Http::json(Obstacles::status() + ['summary' => Obstacles::summary('1=1', [])]);

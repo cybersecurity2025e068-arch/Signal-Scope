@@ -27,3 +27,6 @@ server/app/data/deployed.json
 server/app/data/obstacles.version
 server/public/raasid/SignalScope.apk
 server/public/raasid/SignalScope.json
+server/app/backups/
+server/app/data/alerts.last
+server/app/data/last-cron.json

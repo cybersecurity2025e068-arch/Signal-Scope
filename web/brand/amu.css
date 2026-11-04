@@ -82,6 +82,8 @@ h1, h2, h3, .hd, .brand b, .brand h1 { font-family: 'Readex Pro', 'Cairo', sans-
 
 /* داخل البوابة الموحدة (iframe): نخفي العناوين المكررة لتوفير المساحة */
 html.amu-embed .amu-hide-embed { display: none !important; }
+/* عند ظهور شريط الصفحة الفرعية نخفي اسم الصفحة المكرر في رأسها */
+html.amu-has-sub .amu-dup-brand { display: none !important; }
 
 /* ===== شريط الصفحات الفرعية (مثل تفرعات بوابة القسم) ===== */
 .amu-sub { position: relative; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: max(8px, env(safe-area-inset-top)) 16px 8px;

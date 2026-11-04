@@ -78,6 +78,9 @@ tr.click:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent
 .diag li.bad { border-color: var(--bad); } .diag li.warn { border-color: var(--warn); } .diag li.good { border-color: var(--good); }
 .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); }
 .chip.off { color: var(--bad); }
+.alert-cnt { background: #dc2626 !important; color: #fff !important; border-color: transparent !important; font-weight: 800; padding: 0 7px; margin-inline-start: 4px; }
+.sev { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; font-weight: 800; color: #fff; }
+.sev.high { background: #dc2626; } .sev.medium { background: #d97706; } .sev.ack { background: #64748b; } .sev.resolved { background: #16a34a; }
 .stack { display: flex; height: 26px; border-radius: 6px; overflow: hidden; background: var(--line); }
 .stack > div { height: 100%; display: grid; place-items: center; font-size: 11px; color: #fff; overflow: hidden; white-space: nowrap; }
 :root { --o-terrain: #a0703c; --o-buildings: #8e5bd6; --o-indoor: #e8833a; --o-residual: #7d8794; --o-clear: #2f9e6b; }
