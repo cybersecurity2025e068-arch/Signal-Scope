@@ -31,3 +31,5 @@ server/app/backups/
 server/app/data/alerts.last
 server/app/data/last-cron.json
 server/app/data/intf.*
+server/app/data/portal-config.json
+server/app/data/firebase-certs.json

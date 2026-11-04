@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>مركز إدارة البوابة · جامعة المعقل الدولية</title>
+<meta name="theme-color" content="#FEF8E7">
+<script src="../../app/brand/amu.js"></script>
+<script src="../../app/brand/amu-bar.js" data-title="مركز إدارة البوابة" defer></script>
+<link rel="icon" href="../../app/brand/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Readex+Pro:wght@400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="../../dashboard/dashboard.css">
+<link rel="stylesheet" href="../../app/brand/amu.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div id="login" class="auth" hidden>
+  <div class="card authcard">
+    <span class="amu-crest" style="width:76px;height:76px;margin:0 auto"><img src="../../app/brand/crest.svg" alt="شعار جامعة المعقل الدولية"></span>
+    <h1 style="text-align:center">مركز إدارة البوابة</h1>
+    <p class="muted" style="text-align:center;margin:-6px 0 4px">جامعة المعقل الدولية · بوابة القسم ومنظومة راصد الإشارة</p>
+    <p class="muted" id="lgHint">دخول المدير ونائبه ومشرفي الأقسام بحساب البوابة نفسه.</p>
+    <button class="btn pri gbig" id="lgGoogle" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M21.35 11.1H12v2.98h5.35c-.23 1.4-1.66 4.1-5.35 4.1a5.94 5.94 0 010-11.88 5.3 5.3 0 013.74 1.46l2.04-1.97A8.9 8.9 0 0012 3.1a8.9 8.9 0 000 17.8c5.14 0 8.55-3.61 8.55-8.7 0-.58-.06-1.02-.2-1.1z"/></svg>الدخول بحساب Google</button>
+    <details class="staff"><summary>دخول مشرف بحساب الأستاذ (اسم المستخدم)</summary>
+      <form id="lgStaff" class="grid" style="gap:8px;margin-top:8px">
+        <label class="f">اسم المستخدم<input class="inp" id="lgUser" dir="ltr" autocomplete="username" placeholder="doc01"></label>
+        <label class="f">كلمة المرور<input class="inp" id="lgPass" type="password" dir="ltr" autocomplete="current-password"></label>
+        <button class="btn" type="submit">دخول</button>
+      </form></details>
+    <p class="err" id="lgErr" hidden></p>
+    <p class="note">الحسابات المسموح لها تُدار من هذا المركز. مدير لوحة الراصد بكلمة المرور يدخل أيضاً من <a href="../../dashboard/">لوحة الراصد</a> ثم يعود إلى هنا.</p>
+  </div>
+</div>
+
+<div id="shell" class="shell" hidden>
+  <header class="top">
+    <div class="brand amu-dup-brand"><span class="amu-crest" style="width:34px;height:34px"><img src="../../app/brand/crest.svg" alt=""></span><span>مركز إدارة البوابة</span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="who" id="who"></div>
+  </header>
+  <main id="view" class="view"></main>
+</div>
+<dialog id="dlg" class="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<div class="toast" id="toast" hidden></div>
+<script src="admin.js"></script>
+<script src="../../app/brand/amu-bridge.js" defer></script>
+</body>
+</html>

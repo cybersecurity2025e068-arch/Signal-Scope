@@ -77,6 +77,45 @@ try {
         Http::json(['id' => (int)$dev['id'], 'name' => $dev['name']]);
     }
 
+    // ---------- مركز إدارة البوابة: نقاط عامة تقرؤها صفحات البوابتين ----------
+    if ($path === '/v1/portal/config' || $path === '/v1/portal/hit') {
+        // صفحات البوابة على it-basra.com وصفحات الكنترول والحضور على GitHub Pages
+        $origin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
+        if (preg_match('#^https://(it-basra\.com|www\.it-basra\.com|drdshsw2022-byte\.github\.io)$#', $origin)) {
+            header('Access-Control-Allow-Origin: ' . $origin); header('Vary: Origin');
+            header('Access-Control-Allow-Methods: GET, POST'); header('Access-Control-Allow-Headers: Content-Type');
+        }
+        if ($method === 'OPTIONS') { http_response_code(204); exit; }
+        if ($path === '/v1/portal/hit') {
+            $b = json_decode((string)file_get_contents('php://input', false, null, 0, 2000), true) ?: $_POST;
+            try { Portal::hit((string)($b['s'] ?? ''), (string)($b['d'] ?? '')); } catch (Throwable $e) { error_log('[portal hit] ' . $e->getMessage()); }
+            http_response_code(204); exit;
+        }
+        header('Cache-Control: public, max-age=60');
+        Http::json(Portal::publicConfig());
+    }
+    if ($path === '/v1/portal/session' && $method === 'POST') Http::json(['ok' => true, 'me' => Portal::login((string)(Http::body(16_000)['id_token'] ?? ''))]);
+    if ($path === '/v1/portal/logout' && $method === 'POST') { Portal::logout(); Http::json(['ok' => true]); }
+    if (strpos($path, '/v1/portal/') === 0) {
+        $me = Portal::me();
+        $b = $method === 'POST' || $method === 'DELETE' ? Http::body(64_000) : [];
+        if ($path === '/v1/portal/me') Http::json(['me' => $me, 'roles' => Portal::ROLES, 'statuses' => Portal::STATUSES, 'project' => FirebaseToken::project()]);
+        if ($path === '/v1/portal/users') Http::json(Portal::users($me));
+        if ($path === '/v1/portal/users/save' && $method === 'POST') Http::json(Portal::saveUser($me, $b));
+        if ($path === '/v1/portal/users/delete' && $method === 'POST') Http::json(Portal::deleteUser($me, (string)($b['email'] ?? '')));
+        if ($path === '/v1/portal/blocked' && $method === 'POST') Http::json(Portal::block($me, (string)($b['email'] ?? ''), (string)($b['reason'] ?? ''), !empty($b['on'])));
+        if ($path === '/v1/portal/sections') Http::json(['sections' => Portal::sections()]);
+        if ($path === '/v1/portal/sections/save' && $method === 'POST') Http::json(Portal::saveSection($me, $b));
+        if ($path === '/v1/portal/sections/delete' && $method === 'POST') Http::json(Portal::deleteSection($me, (string)($b['id'] ?? '')));
+        if ($path === '/v1/portal/news') Http::json(['news' => Portal::news($me)]);
+        if ($path === '/v1/portal/news/save' && $method === 'POST') Http::json(Portal::saveNews($me, $b));
+        if ($path === '/v1/portal/news/delete' && $method === 'POST') Http::json(Portal::deleteNews($me, (int)($b['id'] ?? 0)));
+        if ($path === '/v1/portal/stats') Http::json(Portal::stats($me, Http::intParam('days', 30, 1, 365)));
+        if ($path === '/v1/portal/audit') Http::json(['log' => Portal::auditLog($me, Http::intParam('limit', 300, 1, 2000))]);
+        if ($path === '/v1/portal/colleges') Http::json(Portal::colleges());
+        throw new HttpError(404, 'المسار غير موجود: ' . $path, 'not_found');
+    }
+
     // ---------- التحديث الذاتي من GitHub (محمي بـ X-Deploy-Token) ----------
     if ($path === '/v1/admin/deploy') {
         $db = ss_db();

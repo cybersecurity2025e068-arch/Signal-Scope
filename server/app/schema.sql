@@ -202,3 +202,85 @@ CREATE TABLE IF NOT EXISTS sample_intf (
   agg_mod3   TINYINT(1) NOT NULL DEFAULT 0,
   KEY k_cls (cls)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+;
+
+-- ===== مركز إدارة البوابة: المدير ونائبه والمشرفون، والتفرعات، والإعلانات، والإحصاءات، وسجل العمليات =====
+CREATE TABLE IF NOT EXISTS portal_users (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email       VARCHAR(120) NOT NULL,
+  name        VARCHAR(120) NULL,
+  role        VARCHAR(12)  NOT NULL,
+  depts       TEXT NULL,
+  note        VARCHAR(200) NULL,
+  active      TINYINT(1) NOT NULL DEFAULT 1,
+  added_by    VARCHAR(120) NULL,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_login  DATETIME NULL,
+  UNIQUE KEY uq_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS portal_blocked (
+  email       VARCHAR(120) NOT NULL PRIMARY KEY,
+  reason      VARCHAR(200) NULL,
+  added_by    VARCHAR(120) NULL,
+  created_at  DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS portal_sections (
+  id          VARCHAR(40) NOT NULL PRIMARY KEY,
+  system      VARCHAR(10) NOT NULL,
+  name        VARCHAR(100) NOT NULL,
+  url         VARCHAR(250) NOT NULL,
+  match_re    VARCHAR(250) NOT NULL DEFAULT '',
+  selector    VARCHAR(100) NOT NULL DEFAULT '',
+  status      VARCHAR(12) NOT NULL DEFAULT 'visible',
+  message     VARCHAR(250) NULL,
+  depts_off   TEXT NULL,
+  sort        INT NOT NULL DEFAULT 100,
+  builtin     TINYINT(1) NOT NULL DEFAULT 0,
+  updated_by  VARCHAR(120) NULL,
+  updated_at  DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS portal_news (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title       VARCHAR(150) NOT NULL,
+  body        TEXT NULL,
+  level       VARCHAR(8) NOT NULL DEFAULT 'info',
+  systems     VARCHAR(8) NOT NULL DEFAULT 'all',
+  depts       TEXT NULL,
+  pinned      TINYINT(1) NOT NULL DEFAULT 0,
+  starts      DATETIME NULL,
+  ends        DATETIME NULL,
+  active      TINYINT(1) NOT NULL DEFAULT 1,
+  created_by  VARCHAR(120) NOT NULL,
+  created_at  DATETIME NOT NULL,
+  updated_at  DATETIME NOT NULL,
+  KEY k_active (active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS portal_audit (
+  id      BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  at      DATETIME NOT NULL,
+  email   VARCHAR(120) NOT NULL,
+  action  VARCHAR(24) NOT NULL,
+  target  VARCHAR(120) NULL,
+  detail  VARCHAR(500) NULL,
+  ip      VARCHAR(45) NULL,
+  KEY k_at (at),
+  KEY k_action (action)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS portal_hits (
+  day      DATE NOT NULL,
+  section  VARCHAR(40) NOT NULL,
+  dept     VARCHAR(40) NOT NULL DEFAULT '',
+  n        INT UNSIGNED NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, section, dept)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS portal_hit_seen (
+  k    CHAR(40) NOT NULL PRIMARY KEY,
+  day  DATE NOT NULL,
+  KEY k_day (day)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

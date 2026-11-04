@@ -1,0 +1,39 @@
+/* مركز إدارة البوابة — إضافات فوق تنسيق لوحة الراصد وهوية الجامعة */
+.gbig { justify-content: center; padding: 11px 16px; font-size: 15px; }
+.gbig svg { width: 20px; height: 20px; }
+.staff summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 700; }
+.who { display: flex; align-items: center; gap: 8px; margin-inline-start: auto; font-size: 13px; }
+.role { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 800; color: #fff; background: #64748b; }
+.role.owner { background: linear-gradient(135deg, #F59E0B, #B45309); }
+.role.deputy { background: #0284C7; }
+.role.supervisor { background: #16a34a; }
+.st { display: inline-block; padding: 1px 9px; border-radius: 99px; font-size: 12px; font-weight: 800; border: 1px solid transparent; }
+.st.visible { background: #16a34a1f; color: #15803d; border-color: #16a34a55; }
+.st.locked { background: #0284c71f; color: #0369a1; border-color: #0284c755; }
+.st.maintenance { background: #f59e0b26; color: #b45309; border-color: #f59e0b66; }
+.st.hidden { background: #dc26261f; color: #b91c1c; border-color: #dc262655; }
+.lvl { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-inline-end: 6px; }
+.lvl.info { background: #0284C7; } .lvl.warn { background: #F59E0B; } .lvl.urgent { background: #DC2626; }
+.dlg { border: 1.5px solid rgba(217,119,6,.45); border-radius: 18px; padding: 0; width: min(560px, calc(100% - 24px)); background: var(--panel); color: var(--ink); box-shadow: 0 24px 60px rgba(0,0,0,.4); }
+.dlg::backdrop { background: rgba(2,4,10,.55); backdrop-filter: blur(3px); }
+.dlg form { padding: 18px; display: grid; gap: 10px; }
+.dlg h2 { margin: 0; }
+.dlg .acts { display: flex; gap: 8px; justify-content: flex-end; margin-top: 6px; }
+.depts { max-height: 230px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.depts b { display: block; font-size: 12px; color: var(--muted); margin: 6px 0 2px; }
+.depts label { display: inline-flex; gap: 4px; align-items: center; margin: 2px 10px 2px 0; font-size: 13px; }
+.tree { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.tree .card h3 { color: var(--ink); }
+.tree td { white-space: normal; }
+.hbar { display: flex; align-items: center; gap: 8px; }
+.hbar i { display: block; height: 10px; border-radius: 4px; background: linear-gradient(90deg, #F59E0B, #B45309); min-width: 2px; }
+.daily { display: flex; align-items: flex-end; gap: 3px; height: 140px; direction: ltr; border-bottom: 1px solid var(--line); padding-top: 6px; }
+.daily div { flex: 1; background: linear-gradient(#F59E0B, #D97706); border-radius: 3px 3px 0 0; min-height: 1px; }
+.quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.quick a { display: block; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); text-decoration: none; color: var(--ink); background: var(--panel); }
+.quick a:hover { border-color: #D97706; }
+.quick a b { display: block; }
+.quick a span { font-size: 12px; color: var(--muted); }
+.td-wrap { white-space: normal !important; min-width: 180px; }
+.pill-x { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 99px; border: 1px solid var(--line); margin: 1px; }
+@media (max-width: 640px) { .who span.email { display: none; } }

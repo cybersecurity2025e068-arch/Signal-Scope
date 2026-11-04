@@ -30,4 +30,10 @@ return [
 
     // رمز التحديث الذاتي من GitHub (40 حرفاً؛ يُنشئه الإعداد التلقائي). فارغ = معطّل
     'deploy_token' => '',
+
+    // مركز إدارة البوابة (/raasid/admin/): مشروع Firebase لحسابات البوابة، والمدير ونائبه عند أول تشغيل
+    // (بعدها تُدار الحسابات من المركز نفسه، ويستطيع المدير نقل الإدارة)
+    'firebase_project' => 'almaqal-uni',
+    'portal_owner' => 'drdsh.sw2022@gmail.com',
+    'portal_deputy' => 'it.basra@gmail.com',
 ];
