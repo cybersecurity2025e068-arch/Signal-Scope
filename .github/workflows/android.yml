@@ -24,13 +24,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # اختياري: مفتاح توقيع ثابت حتى تُثبَّت التحديثات فوق النسخة السابقة
+      # (شرط if على env الخاص بالخطوة نفسها لا يعمل في Actions، فالفحص داخل السكربت)
       - name: Decode signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-        if: env.KEYSTORE_BASE64 != ''
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "::warning::No signing secrets: APK is signed with a temporary debug key"; exit 0; fi
+          echo "$KEYSTORE_BASE64" | tr -d ' \n\r' | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "SIGNING_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          echo "Signing with the release key from secrets"
 
       - name: Build release APK
         working-directory: android
