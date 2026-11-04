@@ -30,3 +30,4 @@ server/public/raasid/SignalScope.json
 server/app/backups/
 server/app/data/alerts.last
 server/app/data/last-cron.json
+server/app/data/intf.*

@@ -247,6 +247,42 @@
   function techLabel(s) { if (!s || !s.tech) return "—"; return (s.tech === "LTE" && s.nsa ? "5G NSA (مرساة LTE)" : TECH_AR[s.tech] || s.tech); }
   function chipQ(metric, v, unit) { const c = E.classify(metric, v); return `<span class="chip q q-${c.k}">${esc(c.ar)}${isNum(v) ? ` · <span class="mono" dir="ltr">${v}${unit ? " " + unit : ""}</span>` : ""}</span>`; }
   function banner(html) { const b = $("liveBanner"); if (!html) { b.hidden = true; return; } b.hidden = false; b.innerHTML = svg("info") + `<div>${html}</div>`; }
+  // سقف SINR لهذا الجهاز: المئين 95 لقراءات الإشارة القوية (كما في الخادم)، و25 dB حتى تتجمع 100 قراءة
+  let capBuf = [], capKey = "";
+  function sinrCap(s) {
+    const key = ST.source + ":" + (ST.source === "demo" ? ST.scenario : "");
+    if (key !== capKey) { capKey = key; capBuf = []; }
+    if (s && isNum(s.sinr) && isNum(s.rsrp) && s.rsrp > -90) { capBuf.push(s.sinr); if (capBuf.length > 600) capBuf.shift(); }
+    if (capBuf.length < 100) return 25;
+    const v = capBuf.slice().sort((a, b) => a - b); return clamp(v[Math.floor(0.95 * (v.length - 1))], 18, 32);
+  }
+  const INTF_COLOR = { clean: "#16a34a", coverage: "#64748b", load: "#0ea5e9", cochannel: "#f59e0b", mod3: "#ea580c", pilot: "#a855f7", external: "#dc2626", unexplained: "#f43f5e", mixed: "#eab308" };
+  const INTF_HINT = {
+    clean: "جودة الإشارة كما يُتوقع لقوتها. لا تشويش يُذكر.",
+    coverage: "الإشارة ضعيفة لبعد البرج أو العوائق، وليس بسبب تشويش.",
+    load: "SINR جيد و RSRQ منخفض: الخلية مزدحمة بالمستخدمين.",
+    cochannel: "خلية مجاورة من المشغّل نفسه على التردد نفسه تشوّش على الخلية المخدّمة.",
+    mod3: "خلية مجاورة قوية بنفس باقي PCI على 3: إشاراتها المرجعية فوق إشارات خليتك. العلاج عند المشغّل: إعادة تخطيط PCI.",
+    pilot: "خلايا كثيرة متقاربة القوة بلا خلية مهيمنة (تلوث إشارة).",
+    external: "تشويش لا تفسّره الخلايا المجاورة: مصدر خارجي محتمل (مقوٍّ غير مرخص، جهاز تشويش، معدات كهربائية). تحرّك وراقب: إن زاد التشويش باقترابك من مكان ما فالمصدر هناك.",
+    unexplained: "تشويش قوي لا تفسّره الخلايا المرئية، والإشارة ضعيفة (حافة الخلية) أو الجهاز لا يبلّغ عن الجيران: قد يكون من خلايا بعيدة أو مصدر خارجي.",
+    mixed: "تشويش متوسط من الخلايا المجاورة ومصادر أخرى.",
+  };
+  function renderIntf(s) {
+    const box = $("intfLive"); if (!box) return;
+    const r = E.interference(s, sinrCap(s));
+    if (!r) { $("intfTag").textContent = ""; box.innerHTML = `<p class="note">يعمل مع شبكات 4G و5G عند توفر SINR أو RSRQ.</p>`; return; }
+    const c = INTF_COLOR[r.cls];
+    $("intfTag").innerHTML = `<span class="chip" style="background:${c};color:#fff;border-color:transparent">${esc(r.label)}</span>`;
+    const pct = r.explained === null ? null : Math.round(100 * r.explained);
+    box.innerHTML = `<div class="intfg">
+        <div><span>تراجع SINR بسبب التشويش</span><b style="color:${r.deg >= 6 ? c : "inherit"}">${r.deg}</b><small>dB</small></div>
+        <div><span>SINR المقاس / المتوقع</span><b>${r.sinr} / ${r.sinrExp}</b><small>dB</small></div>
+        <div><span>قدرة التشويش</span><b>${r.iDbm ?? "—"}</b><small>dBm/MHz</small></div>
+        <div><span>تفسّره الخلايا المجاورة</span><b>${pct === null ? "—" : pct + "%"}</b><small>${r.nCochan} على التردد نفسه</small></div>
+      </div>
+      <p class="note" style="margin:10px 0 0">${esc(INTF_HINT[r.cls])}${r.agg && ["cochannel", "mod3", "pilot"].includes(r.cls) ? ` المسببة الأقوى: PCI <b dir="ltr">${r.agg.pci}</b> بفرق ${r.agg.gap.toFixed(1)} dB${r.agg.m3 ? " (تصادم mod 3)" : ""}.` : ""}${r.src === "rsrq" ? " (SINR غير متاح؛ قُدّر من RSRQ.)" : ""} التحليل الكامل ومواقع المصادر في لوحة الراصد ← التشويش.</p>`;
+  }
   function renderLive() {
     const s = ST.last; if (!s) return;
     // banner per source
@@ -293,6 +329,8 @@
     $("cellTech").textContent = s.roaming ? "تجوال" : "";
 
     drawTrend();
+
+    renderIntf(s);
 
     // neighbors
     const nb = (s.nb || []).slice().sort((a, b) => (b.rsrp ?? -999) - (a.rsrp ?? -999));

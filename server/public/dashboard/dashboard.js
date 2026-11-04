@@ -142,7 +142,7 @@
     V().innerHTML = `<div class="empty">جارٍ التحميل…</div>`;
     refreshAlertBadge();
     try {
-      const fn = { overview, sessions, session, coverage, cells, cell, obstacles, compare, alerts, devices, settings }[page] || overview;
+      const fn = { overview, sessions, session, coverage, cells, cell, obstacles, interference, compare, alerts, devices, settings }[page] || overview;
       await fn(id);
     } catch (e) { V().innerHTML = `<div class="card"><p class="err">${esc(e.message)}</p></div>`; }
   }
@@ -400,6 +400,144 @@
       try { const r = await api("v1/obstacles/run", { method: "POST" }); showStatus(r.status); toast(`حُلِّلت ${r.run.samples} قراءة جديدة`); await load(); }
       catch (e) { toast(e.message); }
       finally { $("oRun").disabled = false; $("oRun").textContent = "تشغيل التحليل الآن"; }
+    };
+    await load();
+  }
+
+  // ------------------------------------------------------------------ interference isolation
+  const INTF_ORDER = ["external", "unexplained", "mod3", "pilot", "cochannel", "mixed", "load", "coverage", "clean"];
+  const opsOf = list => (list || []).map(k => { const [a, b] = k.split("-"); return esc(opName(+a, +b)); }).join("، ");
+  function hourBars(prof, key = "pct", color = "#dc2626") {
+    const max = Math.max(1, ...prof.map(p => p[key] || 0));
+    return `<div class="hbars" dir="ltr">${prof.map(p => `<div title="${p.h}:00 — ${p.n ? fmt(p[key], 0) + "% من " + p.n + " قراءة" : "لا قياس"}"><i style="height:${p.n ? Math.max(2, 100 * (p[key] || 0) / max) : 0}%;background:${p.n ? color : "transparent"}"></i><span>${p.h % 3 === 0 ? p.h : ""}</span></div>`).join("")}</div>`;
+  }
+  async function interference() {
+    const o = await api("v1/overview");
+    V().innerHTML = `<div class="row spread" style="margin-bottom:6px"><h1>عزل التشويش</h1>
+        <div class="row noprint"><button class="btn sm" id="iRun" type="button">تحليل القراءات الجديدة</button><a class="btn sm" id="iCsv" href="#">تصدير CSV</a><button class="btn sm" type="button" onclick="print()">طباعة التقرير</button></div></div>
+      <p class="muted" style="margin-top:0" id="iStat"></p>
+      <div class="filters noprint">
+        <label class="f">المشغّل<select class="sel" id="iOp"><option value="">الكل</option>${o.operators.map(p => `<option value="${p.mcc}-${p.mnc}">${esc(opName(p.mcc, p.mnc))}</option>`).join("")}</select></label>
+        <label class="f">الفترة<select class="sel" id="iDays"><option value="0">كل البيانات</option><option value="30">آخر 30 يوماً</option><option value="7">آخر 7 أيام</option><option value="1">آخر 24 ساعة</option></select></label>
+      </div>
+      <div class="tiles" id="iTiles"></div>
+      <div class="grid g2" style="margin-top:14px">
+        <div class="card span2"><h3>خريطة التشويش</h3><div class="map" id="iMap"></div><div class="legend" id="iLegend"></div>
+          <p class="note">لون المربع = السبب الغالب حين تتجاوز القراءات المشوَّشة فيه 25%، وكثافته = متوسط تراجع SINR. الدوائر الحمراء المتقطعة = مصادر تشويش خارجي مقدَّرة ونطاق الثقة حولها، والنقاط البرتقالية = أبراج الخلايا المسببة للتداخل.</p></div>
+        <div class="card"><h3>توزيع الأسباب</h3><div id="iCls"></div></div>
+        <div class="card"><h3>التشويش حسب ساعة اليوم <small class="muted">(بتوقيت البصرة)</small></h3><div id="iHours"></div></div>
+        <div class="card span2"><h3>مصادر التشويش الخارجي</h3><div id="iSrc"></div></div>
+        <div class="card span2"><h3>الخلايا المسببة للتداخل (من شبكة المشغّل)</h3><div class="tablewrap" id="iAgg"></div></div>
+        <div class="card"><h3>تصادمات PCI mod 3</h3><div class="tablewrap" id="iPci"></div></div>
+        <div class="card"><h3>المشغّلون</h3><div class="tablewrap" id="iOps"></div></div>
+        <div class="card span2"><h3>دليل الأسباب وطرق العلاج</h3><div id="iCat" class="catalog"></div></div>
+        <div class="card span2"><h3>طريقة الحساب</h3><div class="note" id="iHow"></div></div>
+      </div>`;
+    const m = await makeMap($("iMap"));
+    let CAT = {}, LBL = {};
+    const col = k => (CAT[k] || {}).color || "#888";
+    m.addSource("g", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    m.addSource("src", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    m.addSource("srcP", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    m.addSource("agg", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    m.addLayer({ id: "g", type: "fill", source: "g", paint: { "fill-color": ["get", "color"],
+      "fill-opacity": ["interpolate", ["linear"], ["get", "deg"], 0, 0.3, 6, 0.55, 15, 0.85], "fill-outline-color": "#0003" } });
+    m.addLayer({ id: "src", type: "line", source: "src", paint: { "line-color": "#dc2626", "line-width": 2.5, "line-dasharray": [2, 1.5] } });
+    m.addLayer({ id: "agg", type: "circle", source: "agg", paint: { "circle-radius": 7, "circle-color": "#ea580c", "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
+    m.addLayer({ id: "srcP", type: "circle", source: "srcP", paint: { "circle-radius": 10, "circle-color": "#dc2626", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
+    popupOn(m, "g", p => { const c = JSON.parse(p.counts || "{}"); return `<b>${esc(p.label)}</b> · ${p.n} قراءة<br>تراجع SINR <b class="mono">${p.deg}</b> dB · SINR ${p.sinr} dB<br>قدرة التشويش ${bd(p.i_dbm ?? "—")} dBm/MHz (الأقصى ${bd(p.i_max ?? "—")})<br>${fmt(p.intf_pct, 0)}% مشوَّشة · ${p.ops} مشغّل<br><small>${Object.entries(c).map(([k, v]) => esc(LBL[k] || k) + ": " + v).join(" · ")}</small>`; });
+    popupOn(m, "srcP", p => `<b>مصدر ${p.id}: ${esc(p.title)}</b><br>قوة مكافئة ≥ ${bd(p.eirp + " dBm/MHz")}<br>تراجع SINR ${p.deg} dB · ثقة ${p.conf}%`);
+    popupOn(m, "agg", p => `<b>خلية PCI ${p.pci}</b> (${esc(p.band)})<br>${esc(p.op)} · سببت تداخلاً في ${p.n} قراءة`);
+    let first = true;
+    const params = () => { const q = new URLSearchParams({ days: $("iDays").value }); const [mcc, mnc] = ($("iOp").value || "-").split("-"); if (mcc) { q.set("mcc", mcc); q.set("mnc", mnc); } return q; };
+    async function load() {
+      const q = params();
+      $("iCsv").href = apiUrl("v1/interference/csv?" + q);
+      const [r, gj, sr, ag] = await Promise.all([api("v1/interference?" + q), api("v1/interference/grid?" + q), api("v1/interference/sources?" + q), api("v1/interference/aggressors?" + q)]);
+      CAT = r.catalog; LBL = r.labels;
+      const st = r.status, sm = r.summary, C = sm.classes || {};
+      const caps = Object.entries(st.sinr_caps || {}).map(([d, v]) => `جهاز ${d}: ${fmt(v, 1)} dB`).join("، ");
+      $("iStat").innerHTML = `حُلِّلت ${fmt(st.analyzed)} من ${fmt(st.eligible)} قراءة LTE/5G · ${fmt(st.with_neighbors)} قراءة فيها خلايا مجاورة${caps ? ` · سقف SINR المعايَر: ${caps}` : ""}${sm.from_rsrq ? ` · ${fmt(sm.from_rsrq)} قراءة بلا SINR قُدّر من RSRQ` : ""}`;
+      const intfDeg = INTF_ORDER.filter(k => ["clean", "coverage", "load"].indexOf(k) < 0 && C[k]).reduce((a, k) => [a[0] + C[k].deg * C[k].n, a[1] + C[k].n], [0, 0]);
+      $("iTiles").innerHTML = `
+        <div class="tile"><span>قراءات مشوَّشة</span><b style="color:${sm.interfered_pct >= 20 ? "#dc2626" : "inherit"}">${fmt(sm.interfered_pct, 1)}%</b><small>${fmt(sm.interfered)} قراءة</small></div>
+        <div class="tile"><span>متوسط تراجع SINR فيها</span><b>${intfDeg[1] ? fmt(intfDeg[0] / intfDeg[1], 1) : "—"}</b><small>dB</small></div>
+        <div class="tile"><span>مصادر خارجية</span><b style="color:${sr.sources.length ? "#dc2626" : "inherit"}">${fmt(sr.sources.length)}</b></div>
+        <div class="tile"><span>خلايا مسببة للتداخل</span><b>${fmt(ag.aggressors.length)}</b></div>
+        <div class="tile"><span>تصادمات PCI</span><b>${fmt(ag.pci_conflicts.length)}</b></div>
+        <div class="tile"><span>ازدحام / ضعف تغطية</span><b>${fmt((C.load || {}).pct || 0, 0)}% / ${fmt((C.coverage || {}).pct || 0, 0)}%</b></div>`;
+      $("iLegend").innerHTML = INTF_ORDER.map(k => `<span><i style="background:${col(k)}"></i>${esc(LBL[k])}</span>`).join("");
+      // التوزيع
+      const ks = INTF_ORDER.filter(k => C[k]);
+      $("iCls").innerHTML = sm.n ? `<div class="stack">${ks.map(k => `<div style="width:${C[k].pct}%;background:${col(k)}" title="${esc(LBL[k])}: ${C[k].pct}%">${C[k].pct >= 8 ? fmt(C[k].pct, 0) + "%" : ""}</div>`).join("")}</div>
+        <div class="tablewrap" style="margin-top:10px"><table><tr><th>السبب</th><th>النسبة</th><th>تراجع SINR</th><th>SINR</th><th>RSRP</th><th>قدرة التشويش</th></tr>
+        ${ks.map(k => `<tr><td><i class="dot" style="background:${col(k)}"></i> ${esc(LBL[k])}</td><td class="n">${fmt(C[k].pct, 1)}%</td><td class="n">${fmt(C[k].deg, 1)} dB</td><td class="n">${fmt(C[k].sinr, 1)} dB</td><td class="n">${fmt(C[k].rsrp, 0)} dBm</td><td class="n">${C[k].i_dbm === null ? "—" : fmt(C[k].i_dbm, 1) + " dBm/MHz"}</td></tr>`).join("")}</table></div>`
+        : `<div class="empty">لا توجد قراءات LTE/5G محلَّلة بعد. اضغط «تحليل القراءات الجديدة».</div>`;
+      // الساعات
+      const H = Array.from({ length: 24 }, (_, h) => sm.hourly.find(x => x.h === h) || { h, n: 0, intf_pct: 0, ext_pct: 0 });
+      $("iHours").innerHTML = `<p class="note" style="margin:0 0 4px">نسبة القراءات المشوَّشة (كل الأسباب)</p>${hourBars(H, "intf_pct", "#f59e0b")}
+        <p class="note" style="margin:10px 0 4px">نسبة التشويش الخارجي وغير المفسَّر</p>${hourBars(H, "ext_pct", "#dc2626")}
+        <p class="note">ارتفاع التشويش الخارجي في ساعات محددة يدل على مصدر يُشغَّل بجدول (أجهزة تشويش، مولدات، معدات بدوام). الساعات الفارغة لم تُقَس.</p>`;
+      // الخريطة
+      gj.features.forEach(f => f.properties.color = col(f.properties.dominant));
+      m.getSource("g").setData(gj);
+      m.getSource("src").setData({ type: "FeatureCollection", features: sr.sources.map(s => circle(s.lon, s.lat, Math.max(30, s.radius_m))) });
+      m.getSource("srcP").setData({ type: "FeatureCollection", features: sr.sources.map(s => ({ type: "Feature", geometry: { type: "Point", coordinates: [s.lon, s.lat] },
+        properties: { id: s.id, title: s.type.title, eirp: s.eirp_dbm, deg: s.deg_avg, conf: s.confidence } })) });
+      m.getSource("agg").setData({ type: "FeatureCollection", features: ag.aggressors.filter(a => a.cell && a.cell.lat !== null).map(a => ({ type: "Feature",
+        geometry: { type: "Point", coordinates: [a.cell.lon, a.cell.lat] }, properties: { pci: a.pci, band: a.band, op: opName(a.mcc, a.mnc), n: a.n } })) });
+      if (first && gj.features.length) { fit(m, gj.features.flatMap(f => f.geometry.coordinates[0]), 15); first = false; }
+      // المصادر
+      $("iSrc").innerHTML = sr.sources.length ? sr.sources.map(s => `<div class="srcbox">
+          <div class="row spread"><h4 style="margin:0">مصدر ${s.id}: ${esc(s.type.title)}</h4><span class="sev ${s.confidence >= 60 ? "high" : "medium"}">ثقة ${s.confidence}%</span></div>
+          <p class="note" style="margin:4px 0 10px">${esc(s.type.why)}</p>
+          <div class="tiles mini">
+            <div class="tile"><span>الموقع المقدَّر</span><b>${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}</b><small>± ${km(s.radius_m)}</small></div>
+            <div class="tile"><span>القوة المكافئة (EIRP)</span><b>≥ ${fmt(s.eirp_dbm, 1)}</b><small>dBm/MHz</small></div>
+            <div class="tile"><span>أقوى تشويش مستلم</span><b>${fmt(s.peak_dbm, 1)}</b><small>dBm/MHz</small></div>
+            <div class="tile"><span>تراجع SINR</span><b>${fmt(s.deg_avg, 1)}</b><small>dB (الأقصى ${fmt(s.deg_max, 0)})</small></div>
+            <div class="tile"><span>القراءات</span><b>${fmt(s.n)}</b><small>من ${fmt(s.n_area)} في ${s.squares} مربع</small></div>
+          </div>
+          <p style="margin:10px 0 4px"><b>المشغّلون المتأثرون:</b> ${opsOf(s.operators)} · <b>النطاقات:</b> ${s.bands.map(b => bd(esc(b))).join("، ")}${s.cells_affected ? ` · <b>${s.cells_affected}</b> خلية متأثرة` : ""}</p>
+          <p style="margin:0 0 4px"><b>النمط الزمني:</b> ${esc(s.pattern.text)}</p>
+          ${hourBars(s.hourly)}
+          <p class="note" style="margin:6px 0">أول رصد ${dt(s.first)} · آخر رصد ${dt(s.last)} · أقرب قراءة على بعد ${km(s.nearest_m)} من الموقع المقدَّر · أس التضاؤل ${s.exponent ?? "—"}</p>
+          <details><summary><b>خطوات العلاج</b></summary><ol>${(CAT.external.fix || []).map(x => `<li>${esc(x)}</li>`).join("")}</ol></details>
+          <div class="row noprint" style="margin-top:8px"><button class="btn sm" data-fly="${s.lon},${s.lat}" type="button">عرض على الخريطة</button>
+            <a class="btn sm" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}">فتح في خرائط Google للبحث الميداني</a></div>
+        </div>`).join("")
+        : `<div class="empty">لم يُرصد مصدر تشويش خارجي. المصدر يُعلن عند 8 قراءات على الأقل في مربع ${r.status.config.grid_m} م يكون 30% منها أو أكثر بتشويش خارجي يخفض SINR ${r.status.config.ext_min} dB فأكثر.</div>`;
+      $("iSrc").querySelectorAll("[data-fly]").forEach(b => b.onclick = () => { m.flyTo({ center: b.dataset.fly.split(",").map(Number), zoom: 16 }); $("iMap").scrollIntoView({ behavior: "smooth", block: "center" }); });
+      // الخلايا المسببة
+      $("iAgg").innerHTML = ag.aggressors.length ? `<table><tr><th>المشغّل</th><th>النطاق</th><th>PCI المسببة</th><th>الخلايا المتضررة (PCI)</th><th>قراءات</th><th>فرق القوة</th><th>تراجع SINR</th><th>البرج المقدَّر</th><th>التوصية</th></tr>
+        ${ag.aggressors.map(a => `<tr${a.lat !== null ? ` class="click" data-ll="${a.lon},${a.lat}"` : ""}><td>${esc(opName(a.mcc, a.mnc))}</td><td>${bd(esc(a.band))}</td><td class="n">${a.pci}</td><td class="n">${esc(a.victim_pcis || "—")}</td>
+          <td class="n">${fmt(a.n)}${a.n_mod3 ? `<br><small>mod3: ${a.n_mod3}</small>` : ""}${a.n_stronger ? `<br><small>أقوى من الخادمة: ${a.n_stronger}</small>` : ""}</td>
+          <td class="n">${fmt(a.gap, 1)} dB</td><td class="n">${fmt(a.deg, 1)} dB</td><td class="n">${a.dist_m === null ? "غير معروف" : km(a.dist_m)}</td>
+          <td style="white-space:normal;min-width:260px">${a.advice.map(x => `• ${esc(x)}`).join("<br>")}</td></tr>`).join("")}</table>`
+        : `<div class="empty">لا توجد خلايا تسبب تداخلاً ملحوظاً، أو الأجهزة لا تبلّغ عن الخلايا المجاورة.</div>`;
+      $("iAgg").querySelectorAll("tr[data-ll]").forEach(tr => tr.onclick = () => m.flyTo({ center: tr.dataset.ll.split(",").map(Number), zoom: 16 }));
+      $("iPci").innerHTML = ag.pci_conflicts.length ? `<table><tr><th>المشغّل</th><th>EARFCN</th><th>PCI الخادمة</th><th>PCI المجاورة</th><th>mod 3</th><th>قراءات</th><th>تراجع SINR</th></tr>
+        ${ag.pci_conflicts.map(p => `<tr><td>${esc(opName(p.mcc, p.mnc))}</td><td class="n">${p.arfcn}</td><td class="n">${p.serving_pci}</td><td class="n">${p.neighbor_pci}</td><td class="n">${p.mod3}</td><td class="n">${fmt(p.n)}</td><td class="n">${fmt(p.deg, 1)} dB</td></tr>`).join("")}</table>
+        <p class="note">العلاج: غيّر PCI إحدى الخليتين بحيث يختلف باقي قسمتها على 3 عن الأخرى.</p>` : `<div class="empty">لا توجد تصادمات</div>`;
+      $("iOps").innerHTML = sm.operators.length ? `<table><tr><th>المشغّل</th><th>قراءات</th><th>مشوَّشة</th><th>من الشبكة</th><th>خارجي</th><th>SINR</th></tr>
+        ${sm.operators.map(p => `<tr><td>${esc(opName(p.mcc, p.mnc))}</td><td class="n">${fmt(p.n)}</td><td class="n">${fmt(100 * p.n_intf / p.n, 1)}%</td><td class="n">${fmt(100 * p.n_net / p.n, 1)}%</td><td class="n">${fmt(100 * p.n_ext / p.n, 1)}%</td><td class="n">${fmt(+p.sinr, 1)} dB</td></tr>`).join("")}</table>` : `<div class="empty">لا بيانات</div>`;
+      $("iCat").innerHTML = INTF_ORDER.map(k => `<div class="catitem" style="border-inline-start-color:${col(k)}"><b>${esc(LBL[k])}</b><p>${esc(CAT[k].what)}</p>${CAT[k].fix.length ? `<ul>${CAT[k].fix.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</div>`).join("");
+      const c = st.config;
+      $("iHow").innerHTML = `<ol>
+        <li><b>الضوضاء الحرارية</b> لكل عنصر مورد: ${bd("−174 + 10·log₁₀(15 kHz) + NF")} ≈ ${bd(fmt(-174 + 41.76 + c.nf, 1) + " dBm")} (NF = ${c.nf} dB).</li>
+        <li><b>SINR المتوقع</b> بلا تشويش من قوة الإشارة RSRP، مع سقف أداء المستقبِل الذي يُعايَر لكل جهاز من قراءاته القوية (المئين 95 عند RSRP أعلى من −90 dBm).</li>
+        <li><b>تراجع SINR</b> = المتوقع − المقاس. يُعدّ تشويشاً إن بلغ ${c.deg_min} dB. <b>قدرة التشويش</b> = ${bd("S/SINR_meas − S/SINR_exp")} بوحدة dBm/MHz. إن غاب SINR يُشتق من RSRQ بفرض حمل 50%.</li>
+        <li><b>التشويش المتوقع من الخلايا المجاورة</b> على التردد نفسه = مجموع قدراتها × الحمل (100% عند تصادم PCI mod 3 لأن الإشارات المرجعية تتطابق، و50% لغيرها). ما يزيد على ذلك = <b>خارجي</b>.</li>
+        <li><b>التصنيف</b>: تلوث إشارة عند ${c.pilot_n}+ خلايا ضمن ${c.close_db} dB · تصادم mod 3 · تداخل خلايا حين تفسّر المجاورة نصف التشويش أو أكثر · خارجي حين يبلغ التراجع ${c.ext_min} dB ولا تفسّره المجاورة والإشارة الخادمة ${bd("≥ " + c.ext_rsrp + " dBm")} (وإلا «غير مفسَّر» لأن حافة الخلية تتأثر بخلايا بعيدة غير مرئية) · ازدحام حين يكون SINR جيداً و RSRQ ≤ −14 dB.</li>
+        <li><b>موقع المصدر الخارجي</b>: تُجمع المربعات المتجاورة ذات التشويش الخارجي، ويُلاءم نموذج تضاؤل القدرة ${bd("P = A − 10·n·log₁₀(d)")} بحثاً شبكياً (طريقة تقدير الأبراج نفسها). <b>القوة المكافئة</b> = القدرة المستلمة + فقد الفضاء الحر حتى الموقع (حد أدنى، لأن المباني تزيد الفقد).</li>
+        <li><b>نوع المصدر</b>: عدة مشغّلين وعدة نطاقات ← جهاز تشويش؛ مشغّل واحد ودائم ← مقوٍّ غير مرخص؛ غير ذلك ← معدات كهربائية أو PIM.</li></ol>
+        <p>النتائج <b>تقديرية</b> من قياسات الهاتف، ولا يرى الهاتف تشويش الوصلة الصاعدة (من الهاتف إلى البرج) الذي تسببه المقويات عادة. لتأكيد المصدر ميدانياً استخدم محلل طيف وهوائياً اتجاهياً، وتُنسَّق إزالة المصادر غير المرخصة مع هيئة الإعلام والاتصالات.</p>`;
+    }
+    ["iOp", "iDays"].forEach(id => $(id).onchange = () => load().catch(e => toast(e.message)));
+    $("iRun").onclick = async () => {
+      $("iRun").disabled = true; $("iRun").textContent = "جارٍ التحليل…";
+      try { const r = await api("v1/interference/run", { method: "POST" }); toast(`حُلِّلت ${fmt(r.run.analyzed)} قراءة جديدة`); await load(); }
+      catch (e) { toast(e.message); } finally { $("iRun").disabled = false; $("iRun").textContent = "تحليل القراءات الجديدة"; }
     };
     await load();
   }

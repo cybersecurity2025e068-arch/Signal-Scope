@@ -575,6 +575,7 @@
     good:       { ar: "تغطية ممتازة 5G SA", tech: "NR", arfcn: 636666, bands: [78], pci: 412, rsrp: -79, sinr: 22, rsrq: -10.5, ta: 3, bw: 100000, op: "Demo Mobile" },
     indoorEdge: { ar: "داخل مبنى خرساني عند حافة الخلية", tech: "LTE", earfcn: 1650, pci: 117, rsrp: -109, sinr: 1.5, rsrq: -14, ta: 11, bw: 20000, op: "Demo Mobile" },
     interference:{ ar: "إشارة قوية مع تداخل وتلوث", tech: "LTE", earfcn: 1650, pci: 52, rsrp: -83, sinr: 0.5, rsrq: -16.5, ta: 4, bw: 20000, op: "Demo Mobile", polluted: true },
+    jammer:     { ar: "تشويش خارجي (مقوٍّ غير مرخص قريب)", tech: "LTE", earfcn: 1650, pci: 52, rsrp: -79, sinr: 1, rsrq: -17, ta: 3, bw: 20000, op: "Demo Mobile" },
     congestion: { ar: "ازدحام وقت الذروة", tech: "LTE", earfcn: 3050, pci: 233, rsrp: -86, sinr: 17, rsrq: -14.5, ta: 6, bw: 20000, op: "Demo Mobile", slow: true },
     highway:    { ar: "قيادة على طريق سريع", tech: "LTE", earfcn: 6300, pci: 301, rsrp: -92, sinr: 9, rsrq: -11, ta: 20, bw: 10000, op: "Demo Mobile", drive: true },
     wifiCrowded:{ ar: "Wi-Fi مزدحم في عمارة سكنية", tech: "LTE", earfcn: 1650, pci: 117, rsrp: -94, sinr: 11, rsrq: -11.5, ta: 8, bw: 20000, op: "Demo Mobile", crowded: true },
@@ -646,10 +647,54 @@
     };
   }
 
+  /* ---------------------------------------------------------------
+     INTERFERENCE ISOLATION (same model as the server, Interference.php)
+     N per RE = −174 + 10log(SCS) + NF; SINR_exp = 1/(1/SNR + 1/SINR_max);
+     degradation = SINR_exp − SINR; I = S/SINR − S/SINR_exp; co-channel
+     neighbours explain ρ·RSRP each (ρ = 1 on PCI mod-3 collision, else 0.5).
+     --------------------------------------------------------------- */
+  const INTF_LABELS = { clean: "إشارة نظيفة", coverage: "ضعف تغطية", load: "ازدحام الخلية", cochannel: "تداخل خلايا مجاورة", mod3: "تصادم PCI mod 3",
+    pilot: "تلوث الإشارة", external: "تشويش خارجي", unexplained: "تشويش غير مفسَّر", mixed: "تشويش مختلط" };
+  function interference(s, sinrMax = 25, nf = 7) {
+    if (!s || (s.tech !== "LTE" && s.tech !== "NR") || !isNum(s.rsrp)) return null;
+    const arfcn = s.tech === "LTE" ? (s.earfcn ?? s.arfcn) : s.arfcn;
+    const scs = s.tech === "NR" && isNum(arfcn) && arfcn >= 600000 ? 30 : 15;
+    const N = -174 + 10 * log10(scs * 1000) + nf, snr = s.rsrp - N;
+    const sinrExp = lin2db(1 / (1 / db2lin(snr) + 1 / db2lin(sinrMax)));
+    let sm, src;
+    if (isNum(s.sinr)) { sm = s.sinr; src = "sinr"; }
+    else if (isNum(s.rsrq)) { const den = 1 / db2lin(s.rsrq) - 6; sm = den <= 12 / db2lin(sinrMax) ? sinrMax : lin2db(12 / den); src = "rsrq"; }
+    else return null;
+    const deg = Math.max(0, sinrExp - sm), S = db2lin(s.rsrp), I = S / db2lin(sm) - S / db2lin(sinrExp), perMHz = 10 * log10(1000 / scs);
+    let Inb = 0, nClose = 0, agg = null; const co = [];
+    for (const n of s.nb || []) {
+      const nf2 = n.earfcn ?? n.arfcn;
+      if (n.tech && n.tech !== s.tech) continue;
+      if (!isNum(nf2) || nf2 !== arfcn || !isNum(n.rsrp) || (isNum(n.pci) && n.pci === s.pci)) continue;
+      const gap = s.rsrp - n.rsrp, m3 = isNum(n.pci) && isNum(s.pci) && n.pci % 3 === s.pci % 3;
+      Inb += (m3 ? 1 : 0.5) * db2lin(n.rsrp); co.push(n);
+      if (gap <= 6) nClose++;
+      if (!agg || gap < agg.gap) agg = { pci: n.pci, gap, m3 };
+    }
+    const hasNb = (s.nb || []).length > 0;
+    let cls;
+    if (deg < 3) cls = isNum(s.sinr) && isNum(s.rsrq) && s.rsrq <= -14 && sm >= 10 ? "load" : s.rsrp < -110 ? "coverage" : "clean";
+    else if (nClose >= 3) cls = "pilot";
+    else if (agg && agg.m3 && agg.gap <= 6) cls = "mod3";
+    else if (I > 0 && Inb >= 0.5 * I) cls = "cochannel";
+    else if (deg >= 6) cls = hasNb && s.rsrp >= -105 ? "external" : "unexplained";
+    else cls = "mixed";
+    const ext = I - Inb;
+    return { cls, label: INTF_LABELS[cls], src, sinrExp: +sinrExp.toFixed(1), sinr: +sm.toFixed(1), deg: +deg.toFixed(1),
+      iDbm: I > 0 ? +(lin2db(I) + perMHz).toFixed(1) : null, nbDbm: Inb > 0 ? +(lin2db(Inb) + perMHz).toFixed(1) : null,
+      extDbm: ext > 0 ? +(lin2db(ext) + perMHz).toFixed(1) : null, explained: I > 0 ? clamp(Inb / I, 0, 1) : null,
+      nCochan: co.length, nClose, agg };
+  }
+
   const API = {
     C0, TH, CLASSES, RANGES, classify, LTE, NR, earfcnInfo, nrarfcnInfo, nrarfcnFreq, uarfcnInfo, gsmArfcnInfo, wifiChannel, carrierOf,
     fspl, hataRadiusKm, fresnelRadius, taDistance, rssiFromRsrp, nRBfromBw, expectedThroughput, MATERIALS, materialLoss, buildingEntryLoss,
-    wifiPlan, primaryMetrics, health, diagnose, toCSV, importCSV, parseCSVText, CSV_COLS, sessionStats, SCENARIOS, DemoSource, db2lin, lin2db, isNum, clamp
+    wifiPlan, primaryMetrics, health, diagnose, toCSV, importCSV, parseCSVText, CSV_COLS, sessionStats, SCENARIOS, DemoSource, db2lin, lin2db, isNum, clamp, interference, INTF_LABELS
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   else root.SSEngine = API;

@@ -180,3 +180,25 @@ CREATE TABLE IF NOT EXISTS alerts (
   UNIQUE KEY uq_key (akey),
   KEY k_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+;
+
+-- ===== عزل التشويش: نتيجة تحليل كل قراءة LTE/5G (يُعاد بناؤه تلقائياً، لا يُنسخ احتياطياً) =====
+-- deg = تراجع SINR عن المتوقع بسبب التشويش (dB). i/nb/ext بوحدة dBm/MHz:
+-- التشويش الكلي، والمتوقع من الخلايا المجاورة على التردد نفسه، وما لا تفسّره (خارجي محتمل)
+CREATE TABLE IF NOT EXISTS sample_intf (
+  sample_id  BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+  cls        VARCHAR(12) NOT NULL,
+  src        CHAR(1) NOT NULL,
+  sinr_meas  FLOAT NOT NULL,
+  sinr_exp   FLOAT NOT NULL,
+  deg        FLOAT NOT NULL,
+  i_dbm      FLOAT NULL,
+  nb_dbm     FLOAT NULL,
+  ext_dbm    FLOAT NULL,
+  n_cochan   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  n_close    TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  agg_pci    SMALLINT UNSIGNED NULL,
+  agg_gap    FLOAT NULL,
+  agg_mod3   TINYINT(1) NOT NULL DEFAULT 0,
+  KEY k_cls (cls)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

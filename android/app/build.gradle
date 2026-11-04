@@ -13,7 +13,7 @@ android {
         targetSdk 35
         // GitHub Actions يمرّر رقم التشغيل، فيزيد رقم الإصدار تلقائياً مع كل بناء
         versionCode((System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger())
-        versionName '1.4.0'
+        versionName '1.5.0'
     }
 
     // The web UI is shared with the desktop/PWA build: ../web is packaged as the APK's assets.

@@ -125,6 +125,19 @@ try {
             $doc = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
             Http::json(['ok' => true, 'nav' => ($_GET['mode'] ?? '') === 'revert' ? AmuLink::revertNav($doc) : AmuLink::applyNav($doc)]);
         }
+        if (($_GET['action'] ?? '') === 'intf') {   // تشغيل/فحص عزل التشويش (إحصاءات مجمعة فقط)
+            @set_time_limit(200);
+            $run = $method === 'POST' ? Interference::run(90.0) : null;
+            $db = ss_db();
+            $rows = function (string $sql) use ($db) { return $db->query($sql)->fetchAll(); };
+            Http::json(['ok' => true, 'run' => $run, 'status' => Interference::status(), 'summary' => Interference::summary([]),
+                'sources' => array_map(function ($x) { unset($x['hourly']); return $x; }, Interference::sources([])),
+                'aggressors' => array_slice(Interference::aggressors([])['aggressors'], 0, 8),
+                'sinr_by_rsrp' => $rows("SELECT device_id, FLOOR(rsrp / 10) * 10 band, COUNT(*) n, ROUND(AVG(sinr), 1) sinr, MIN(sinr) mn, MAX(sinr) mx,
+                    ROUND(AVG(rsrq), 1) rsrq FROM samples WHERE tech = 'LTE' AND rsrp IS NOT NULL GROUP BY device_id, band ORDER BY device_id, band"),
+                'nb' => $rows("SELECT device_id, COUNT(*) n, SUM(neighbors IS NOT NULL) with_nb, SUM(neighbors LIKE '%earfcn%') with_earfcn,
+                    SUM(neighbors LIKE '%rsrp%') with_rsrp, SUM(sinr IS NOT NULL) with_sinr, SUM(rsrq IS NOT NULL) with_rsrq FROM samples WHERE tech = 'LTE' GROUP BY device_id")]);
+        }
         if ($method === 'POST' && ($_GET['action'] ?? '') === 'backup') Http::json(Backup::run());
         if ($method === 'POST' && ($_GET['action'] ?? '') === 'alerts') Http::json(['scan' => Alerts::scan(), 'open' => Alerts::openCount()]);
         if (($_GET['action'] ?? '') === 'diag') {   // إحصاءات مجمعة للتحقق من التحليل (بلا بيانات شخصية)
@@ -223,6 +236,7 @@ try {
     if (preg_match('#^/v1/sessions/(\d+)$#', $path, $m)) {
         if ($method === 'DELETE') {
             $db = ss_db();
+            $db->prepare('DELETE i FROM sample_intf i JOIN samples s ON s.id = i.sample_id WHERE s.session_id = ?')->execute([(int)$m[1]]);
             $db->prepare('DELETE FROM samples WHERE session_id = ?')->execute([(int)$m[1]]);
             $db->prepare('DELETE FROM sessions WHERE id = ?')->execute([(int)$m[1]]);
             $db->exec('UPDATE cells SET dirty = 1');
@@ -251,6 +265,15 @@ try {
     if ($path === '/v1/alerts') Http::json(['alerts' => Alerts::list((string)($_GET['status'] ?? 'open')), 'config' => Alerts::cfg(), 'open' => Alerts::openCount()]);
     if ($path === '/v1/alerts/scan' && $method === 'POST') Http::json(['ok' => true, 'scan' => Alerts::scan(), 'open' => Alerts::openCount()]);
     if (preg_match('#^/v1/alerts/(\d+)/ack$#', $path, $m) && $method === 'POST') { Alerts::ack((int)$m[1], (string)($_SESSION['admin_user'] ?? 'admin')); Http::json(['ok' => true]); }
+
+    // ---------- عزل التشويش ----------
+    if ($path === '/v1/interference') Http::json(['status' => Interference::status(), 'summary' => Interference::summary($_GET),
+        'catalog' => Interference::catalog(), 'labels' => Interference::LABELS]);
+    if ($path === '/v1/interference/grid') Http::json(Interference::grid($_GET));
+    if ($path === '/v1/interference/sources') { @set_time_limit(90); Http::json(['sources' => Interference::sources($_GET)]); }
+    if ($path === '/v1/interference/aggressors') Http::json(Interference::aggressors($_GET));
+    if ($path === '/v1/interference/csv') Interference::csv($_GET);
+    if ($path === '/v1/interference/run' && $method === 'POST') { @set_time_limit(120); Http::json(['ok' => true, 'run' => Interference::run(60.0), 'status' => Interference::status()]); }
 
     // ---------- النسخ الاحتياطي ----------
     if ($path === '/v1/backups') Http::json(['backups' => Backup::list()]);

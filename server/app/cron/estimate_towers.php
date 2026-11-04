@@ -76,9 +76,13 @@ $alerts = null;
 try { $alerts = Alerts::scanIfDue(); } catch (Throwable $ex) { $alerts = ['error' => $ex->getMessage()]; }
 ss_cron_mark('estimate');
 
+// عزل التشويش (تدريجي: القراءات الجديدة فقط)
+$intf = null;
+try { $intf = Interference::run(15.0); } catch (Throwable $ex) { $intf = ['error' => $ex->getMessage()]; }
+
 // تحليل العوائق في الوقت المتبقي
 $obs = [];
 $olog = [];
 try { $obs = Obstacles::run(max(10.0, $budget + 30 - (microtime(true) - $t0)), $olog); }
 catch (Throwable $ex) { $olog[] = 'obstacles error: ' . $ex->getMessage(); }
-printf("estimated=%d ocid=%d alerts=%s obstacles=%s time=%.1fs\n%s\n", $done, $ocid, json_encode($alerts), json_encode($obs), microtime(true) - $t0, implode("\n", $olog));
+printf("estimated=%d ocid=%d alerts=%s intf=%s obstacles=%s time=%.1fs\n%s\n", $done, $ocid, json_encode($alerts), json_encode($intf), json_encode($obs), microtime(true) - $t0, implode("\n", $olog));

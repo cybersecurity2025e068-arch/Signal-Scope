@@ -206,3 +206,10 @@ canvas.cv{display:block;width:100%;border-radius:var(--r-sm);background:var(--su
   .topbar .tools{width:100%;flex-wrap:nowrap}
   #scenarioSel{flex:1;max-width:none!important}
 }
+
+/* عزل التشويش اللحظي */
+.intfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.intfg > div { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.intfg span { display: block; font-size: 12px; color: var(--muted); }
+.intfg b { display: inline-block; font-size: 20px; font-weight: 800; direction: ltr; unicode-bidi: isolate; }
+.intfg small { font-size: 11px; color: var(--muted); margin-inline-start: 4px; }
