@@ -40,6 +40,8 @@
 
   /* ------------------------------------------------------------- icons */
   const IC = {
+    lab: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
+    ripple: '<path d="M2 12c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0M2 17c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0M2 7c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0"/>',
     live: '<path d="M3 12h4l2.5-6 4 12 2.5-6H21"/>',
     diagnose: '<path d="M7 3v5a4 4 0 0 0 8 0V3"/><path d="M11 12v3a4 4 0 0 0 8 0v-1"/><circle cx="19" cy="12" r="2"/>',
     spectrum: '<path d="M3 20h18"/><path d="M5 16v-3M9 16V6M13 16V9M17 16V4M21 16v-2"/>',
@@ -196,9 +198,14 @@
 
   /* ------------------------------------------------------------- routing */
   function buildNav() {
+    // صفحات المنظومة الأخرى (داخل البوابة الموحدة تبدّل التبويب، وفي التطبيق تفتح الصفحة المحلية)
+    const EXT = [{ href: "lab.html", tab: "lab", ar: "مختبر القناة اللاسلكية", short: "المختبر", ic: "lab" }, { href: "ripple.html", tab: "ripple", ar: "حوض الأمواج", short: "الأمواج", ic: "ripple" }];
+    const extRail = '<div class="sep"></div>' + EXT.map(x => `<a class="navbtn" href="${x.href}" data-amu-tab="${x.tab}">${svg(x.ic)}<span>${x.ar}</span></a>`).join("");
     $("railNav").innerHTML = NAV.map(n => `<button class="navbtn" type="button" data-go="${n.id}">${svg(n.id)}<span>${n.ar}</span>${n.id === "diagnose" ? '<span class="cnt" id="railCnt" hidden></span>' : ""}</button>`).join("") ;
     $("tabbar").innerHTML = TAB.map(id => { const n = NAV.find(x => x.id === id); return `<button type="button" data-go="${id}">${svg(id)}<span>${n.short}</span>${id === "diagnose" ? '<span class="cnt" id="tabCnt" hidden></span>' : ""}</button>`; }).join("") + `<button type="button" id="moreBtn">${svg("more", 2.4)}<span>المزيد</span></button>`;
-    $("morePanel").innerHTML = '<div class="grab"></div>' + NAV.filter(n => !TAB.includes(n.id)).map(n => `<button type="button" data-go="${n.id}">${svg(n.id)}<span>${n.short}</span></button>`).join("");
+    $("railNav").insertAdjacentHTML("beforeend", extRail);
+    $("morePanel").innerHTML = '<div class="grab"></div>' + NAV.filter(n => !TAB.includes(n.id)).map(n => `<button type="button" data-go="${n.id}">${svg(n.id)}<span>${n.short}</span></button>`).join("")
+      + EXT.map(x => `<a href="${x.href}" data-amu-tab="${x.tab}" style="text-decoration:none;color:inherit">${svg(x.ic)}<span>${x.short}</span></a>`).join("");
     document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => { location.hash = b.dataset.go; $("moreSheet").hidden = true; }));
     $("moreBtn").onclick = () => { $("moreSheet").hidden = false; };
     $("moreSheet").onclick = e => { if (e.target === $("moreSheet")) $("moreSheet").hidden = true; };

@@ -31,6 +31,57 @@ final class AmuLink
         ];
     }
 
+    /** سطر منظومة راصد الإشارة في قائمة SYSTEMS داخل amu-nav.js (زر «أنظمة المعقل» في كل الأنظمة) */
+    private const NAV_LINE = "    /* raasid:BEGIN:nav */ { id: 'raasid', name: 'منظومة راصد الإشارة', sub: 'الإشارة الخلوية والمحاكاة', url: 'https://it-basra.com/raasid/', match: [/\\/raasid\\//, /it-basra\\.com\\/(app|dashboard)\\//], icon: 'grid' }, /* raasid:END:nav */";
+
+    public static function navFile(string $docRoot): string
+    {
+        return rtrim($docRoot, '/') . '/amu/amu-nav.js';
+    }
+
+    public static function stripNav(string $js): string
+    {
+        return (string)preg_replace('/\n?[ \t]*\/\* raasid:BEGIN:nav \*\/.*?\/\* raasid:END:nav \*\//s', '', $js);
+    }
+
+    /** يضيف المنظومة إلى قائمة الأنظمة قبل تعليق «نظام جديد؟» (أو قبل إغلاق القائمة) */
+    /** ملف مشترك بين كل أنظمة الجامعة: يُعدَّل فقط بأمر صريح منفصل (action=amu-nav) */
+    public static function applyNav(string $docRoot): string
+    {
+        $f = self::navFile($docRoot);
+        if (!is_file($f)) return 'amu-nav.js not found';
+        $orig = (string)file_get_contents($f);
+        $js = self::stripNav($orig);
+        $start = strpos($js, 'const SYSTEMS = [');
+        if ($start === false) return 'SYSTEMS not found';
+        $anchor = strpos($js, '// نظام جديد؟', $start);
+        if ($anchor === false) $anchor = strpos($js, '];', $start);
+        if ($anchor === false) return 'list end not found';
+        $nl = strrpos(substr($js, 0, $anchor), "\n");
+        // العنصر السابق قد يكون آخر القائمة بلا فاصلة: نضيفها داخل كتلتنا حتى تبقى قابلة للإزالة بالضبط
+        $prev = rtrim((string)preg_replace('#(\n[ \t]*//[^\n]*)+$#', '', rtrim(substr($js, 0, $nl))));   // أسطر تعليق كاملة فقط (لا // داخل الروابط)
+        $line = self::NAV_LINE;
+        if ($prev !== '' && !in_array(substr($prev, -1), [',', '['], true)) {
+            $line = str_replace('/* raasid:BEGIN:nav */ {', '/* raasid:BEGIN:nav */ , {', $line);
+        }
+        $js = substr($js, 0, $nl) . "\n" . $line . substr($js, $nl);
+        $d = SS_APP_DIR . '/data';
+        if (!is_file("$d/amu-nav.original.js")) file_put_contents("$d/amu-nav.original.js", self::stripNav($orig));
+        self::write($f, $js);
+        return 'ok';
+    }
+
+    public static function revertNav(string $docRoot): string
+    {
+        $f = self::navFile($docRoot);
+        if (!is_file($f)) return 'amu-nav.js not found';
+        $orig = (string)file_get_contents($f);
+        $js = self::stripNav($orig);
+        if ($js === $orig) return 'nothing to remove';
+        self::write($f, $js);
+        return 'removed';
+    }
+
     public static function file(string $docRoot): string
     {
         return rtrim($docRoot, '/') . '/amu/index.html';
@@ -80,7 +131,7 @@ final class AmuLink
         if (!is_file($f)) throw new RuntimeException('لم أجد ' . $f);
         $orig = (string)file_get_contents($f);
         $html = self::strip($orig);
-        if ($html === $orig) return ['ok' => true, 'message' => 'لا توجد إضافات لإزالتها'];
+        if ($html === $orig) return ['ok' => true, 'message' => 'لا توجد إضافات في الصفحة'];
         self::backup($orig);
         self::write($f, $html);
         return ['ok' => true, 'message' => 'أُزيلت إضافات راصد الإشارة', 'bytes_after' => strlen($html)];

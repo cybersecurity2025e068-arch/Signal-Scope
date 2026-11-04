@@ -7,7 +7,11 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Readex+Pro:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#FEF8E7">
+<script src="brand/amu.js"></script>
+<script src="brand/amu-bar.js" data-title="مختبر القناة اللاسلكية" defer></script>
 <style>
 /* Layout: instrument-bench — control rack | 3D ray-traced stage | DSP analyzer, single dark "lab scope" look */
 :root{
@@ -142,6 +146,15 @@ tr.click:hover td{background:var(--bg2)}
 @media (max-width:460px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:minmax(0,1fr)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+<link rel="stylesheet" href="brand/amu.css">
+<style>
+/* هوية جامعة المعقل: شريط الصفحة الفرعية بعرض كامل، والمختبر يملأ ما تبقى من الشاشة */
+.amu-sub{margin-inline:calc(-1 * max(16px, env(safe-area-inset-left,0px)))}
+.app{height:calc(100% - var(--amu-sub-h,0px))}
+.mark{background:#060A17!important;border:2px solid #FBBF24!important;border-radius:50%!important;padding:2px;overflow:hidden}
+.mark img{width:100%;height:100%;display:block}
+html.amu-embed .top .brand{display:none}
+</style>
 </head>
 <body>
 
@@ -149,9 +162,7 @@ tr.click:hover td{background:var(--bg2)}
 <div class="app">
   <header class="top">
     <div class="brand">
-      <div class="mark" aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F2A93B" stroke-width="1.6" stroke-linecap="round"><path d="M12 13v8"/><circle cx="12" cy="11" r="1.6" fill="#F2A93B"/><path d="M8.2 7.2a5.4 5.4 0 0 0 0 7.6M15.8 7.2a5.4 5.4 0 0 1 0 7.6" stroke="#62D2FF"/><path d="M5.4 4.4a9.4 9.4 0 0 0 0 13.2M18.6 4.4a9.4 9.4 0 0 1 0 13.2" opacity=".55"/></svg>
-      </div>
+      <div class="mark"><img src="brand/crest.svg" alt="شعار جامعة المعقل الدولية"></div>
       <div>
         <h1>مختبر القناة اللاسلكية <span class="mono" style="font-size:12px;color:var(--muted);font-weight:400">3D Ray-Traced PHY</span></h1>
         <p>تتبع أشعة ثلاثي الأبعاد · عشر مواد وفق ITU-R P.2040 · سلسلة معالجة DSP كاملة — CYSE505 · المحاضرة 05</p>

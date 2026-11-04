@@ -77,7 +77,9 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .sheet .panel{width:100%;background:var(--surface);border-radius:18px 18px 0 0;padding:10px 16px calc(18px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .sheet .grab{grid-column:1/-1;width:44px;height:4px;border-radius:2px;background:var(--line2);margin:2px auto 8px}
 .sheet button{border:1px solid var(--line);background:var(--surface2);border-radius:12px;padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;color:var(--fg);font-size:12px}
-.sheet button svg{width:22px;height:22px;color:var(--accent)}
+.sheet button,.sheet .panel>a{border:1px solid var(--line);background:var(--surface2);border-radius:12px;padding:14px 6px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;color:var(--fg);font-size:12px;text-decoration:none}
+.sheet button svg,.sheet .panel>a svg{width:22px;height:22px;color:var(--accent)}
+a.navbtn{text-decoration:none}
 
 /* ---------- primitives ---------- */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;min-width:0}

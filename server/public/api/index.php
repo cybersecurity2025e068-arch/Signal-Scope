@@ -120,6 +120,11 @@ try {
             $doc = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
             Http::json(($_GET['mode'] ?? '') === 'revert' ? AmuLink::revert($doc) : AmuLink::apply($doc));
         }
+        if ($method === 'POST' && ($_GET['action'] ?? '') === 'amu-nav') {
+            // تعديل منفصل وصريح لقائمة «أنظمة المعقل» المشتركة (amu-nav.js) — mode=revert للتراجع
+            $doc = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
+            Http::json(['ok' => true, 'nav' => ($_GET['mode'] ?? '') === 'revert' ? AmuLink::revertNav($doc) : AmuLink::applyNav($doc)]);
+        }
         if (($_GET['action'] ?? '') === 'diag') {   // إحصاءات مجمعة للتحقق من التحليل (بلا بيانات شخصية)
             $db = ss_db();
             $rows = function (string $sql) use ($db) { return $db->query($sql)->fetchAll(); };

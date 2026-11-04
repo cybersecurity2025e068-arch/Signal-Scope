@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>منظومة راصد الإشارة · جامعة المعقل الدولية</title>
-<meta name="description" content="منظومة راصد الإشارة لقسم هندسة الأمن السيبراني، جامعة المعقل الدولية: لوحة الراصد، وراصد الإشارة، وحوض الأمواج.">
+<meta name="description" content="منظومة راصد الإشارة لقسم هندسة الأمن السيبراني، جامعة المعقل الدولية: لوحة الراصد، وراصد الإشارة، وحوض الأمواج، ومختبر القناة اللاسلكية.">
 <meta name="theme-color" content="#FEF8E7">
 <script src="../app/brand/amu.js"></script>
+<script src="../app/brand/amu-bar.js" data-mode="portal" defer></script>
 <link rel="icon" href="../app/brand/icon.svg" type="image/svg+xml">
 <link rel="icon" type="image/png" sizes="32x32" href="../app/brand/favicon-32.png">
 <link rel="apple-touch-icon" href="../app/brand/apple-touch-icon.png">
@@ -66,6 +67,8 @@
   .idt { min-width: 0; flex: 1; }
   .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; background: rgba(245,158,11,.2); border: 1px solid rgba(251,191,36,.5); color: #FCD34D; font-size: 11.5px; font-weight: 700; }
   .badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #FBBF24; animation: pulse 1.6s infinite; }
+  .dept-btn { margin-inline-start: 4px; padding: 1px 9px; border-radius: 99px; border: 1px solid rgba(251,191,36,.6); background: rgba(0,0,0,.25); color: #FDE68A; font: 800 11px 'Cairo', sans-serif; cursor: pointer; }
+  .dept-btn:hover { background: rgba(245,158,11,.3); }
   .idt h1 { margin: 4px 0 0; font: 800 clamp(20px, 3.2vw, 30px)/1.2 'Readex Pro', 'Cairo', sans-serif; }
   .idt h1 span { display: block; font-size: .72em; background: linear-gradient(to left, #FBBF24, #FDE68A, #FACC15); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
@@ -101,7 +104,10 @@
     .idt h1 { font-size: 18px; }
     .badge { font-size: 10.5px; }
     .tabs { margin-top: 8px; padding: 0 8px; gap: 4px; }
-    .tab { padding: 8px 10px; font-size: 13px; flex: 1; justify-content: center; }
+    .tab { padding: 8px 4px; font-size: 12px; flex: 1; justify-content: center; gap: 4px; }
+    .tab svg { width: 18px; height: 18px; }
+    .dept-btn { display: none; }
+    .badge { cursor: pointer; }
     .tab small, .pop { display: none; }
   }
   @media (max-height: 560px) and (orientation: landscape) { .hero-in { display: none; } .tabs { margin-top: 6px; } }
@@ -118,7 +124,7 @@
     </div>
     <div class="acts">
       <a class="gbtn" href="/amu/" title="بوابة قسم هندسة الأمن السيبراني">
-        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10l9-6 9 6M5 10v9h14v-9M9 19v-5h6v5"/></svg><span class="txt">بوابة القسم</span></a>
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg><span class="txt">العودة للبوابة</span></a>
       <button class="gbtn soft" id="themeBtn" type="button" aria-label="تبديل السمة">
         <svg id="themeIco" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"></svg><span class="txt" id="themeTxt">الوضع الليلي</span></button>
     </div>
@@ -128,7 +134,7 @@
     <div class="hero-in">
       <div class="crest"><div class="ring"><div class="scan"></div><img src="../app/brand/crest.svg" alt="شعار جامعة المعقل الدولية"></div></div>
       <div class="idt">
-        <span class="badge">كلية الهندسة · قسم هندسة الأمن السيبراني</span>
+        <span class="badge"><span data-amu-dept-label>كلية الهندسة · قسم هندسة الأمن السيبراني</span><button type="button" class="dept-btn" id="deptBtn" aria-haspopup="dialog">تغيير القسم ▾</button></span>
         <h1>جامعة المعقل الدولية<span>منظومة راصد الإشارة</span></h1>
       </div>
     </div>
@@ -142,6 +148,9 @@
       <button class="tab" role="tab" id="t-ripple" data-tab="ripple" aria-controls="f-ripple" aria-selected="false">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M2 12c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0M2 17c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0M2 7c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0"/></svg>
         <span>حوض الأمواج <small>محاكاة FDTD</small></span></button>
+      <button class="tab" role="tab" id="t-lab" data-tab="lab" aria-controls="f-lab" aria-selected="false">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linejoin="round" d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path stroke-linejoin="round" d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>
+        <span>مختبر القناة <small>3D Ray-Traced PHY</small></span></button>
       <span class="spacer"></span>
       <a class="gbtn soft pop" id="popOut" href="#" target="_blank" rel="noopener" title="فتح التبويب الحالي في نافذة مستقلة">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>نافذة مستقلة</a>
@@ -156,7 +165,8 @@
   var TABS = {
     dash:   { src: "../dashboard/",         title: "لوحة الراصد" },
     app:    { src: "../app/index.html",     title: "راصد الإشارة" },
-    ripple: { src: "../app/ripple.html",    title: "حوض الأمواج" }
+    ripple: { src: "../app/ripple.html",    title: "حوض الأمواج" },
+    lab:    { src: "../app/lab.html",       title: "مختبر القناة اللاسلكية" }
   };
   var $ = function (id) { return document.getElementById(id); };
   var frames = {};
@@ -193,6 +203,15 @@
     });
   });
   window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
+  // روابط داخل التبويبات (مثل «المختبر» في قائمة راصد الإشارة) تبدّل التبويب هنا
+  window.addEventListener("message", function (e) {
+    if (e.origin === location.origin && e.data && e.data.type === "amu-tab" && TABS[e.data.tab]) show(e.data.tab);
+  });
+  // اختيار القسم مشترك مع بوابة القسم (/amu/)
+  document.addEventListener("DOMContentLoaded", function () {
+    $("deptBtn").addEventListener("click", function (e) { e.stopPropagation(); if (window.AMU_DEPT) AMU_DEPT.open(); });
+    document.querySelector(".badge").addEventListener("click", function () { if (window.innerWidth <= 720 && window.AMU_DEPT) AMU_DEPT.open(); });
+  });
   var start = location.hash.slice(1);
   if (!TABS[start]) { try { start = localStorage.getItem("amu-raasid-tab"); } catch (e) {} }
   show(start);
@@ -225,5 +244,7 @@
   ping(); setInterval(ping, 60000);
 })();
 </script>
+<!-- شريط «أنظمة المعقل» الموحّد (amu-nav.js) كما في كل تفرعات البوابة -->
+<script>(function(d){var s=d.createElement('script');s.src='/amu/amu-nav.js?v='+new Date().toISOString().slice(0,10);s.defer=true;s.dataset.offsetM='16';d.body.appendChild(s)})(document)</script>
 </body>
 </html>
