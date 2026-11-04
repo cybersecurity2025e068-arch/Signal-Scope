@@ -232,6 +232,12 @@ try {
 
     if ($path === '/v1/coverage') Http::json(Reports::coverage($_GET));
 
+    if ($path === '/v1/compare' && $method === 'POST') {
+        @set_time_limit(120);
+        $b = Http::body(64_000);
+        Http::json(Compare::run((array)($b['a'] ?? []), (array)($b['b'] ?? []), (array)($b['shared'] ?? [])));
+    }
+
     if ($path === '/v1/obstacles') Http::json(Obstacles::grid($_GET));
     if ($path === '/v1/obstacles/status') Http::json(Obstacles::status() + ['summary' => Obstacles::summary('1=1', [])]);
     if ($path === '/v1/obstacles/run' && $method === 'POST') {

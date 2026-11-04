@@ -124,6 +124,7 @@
       g.beginPath(); g.strokeStyle = s.color; g.lineWidth = 1.5; let on = false;
       for (const [x, y] of s.data) { if (!isNum(y)) { on = false; continue; } on ? g.lineTo(fx(x), fy(y)) : g.moveTo(fx(x), fy(y)); on = true; }
       g.stroke();
+      if (opts.dots) { g.fillStyle = s.color; for (const [x, y] of s.data) if (isNum(y)) { g.beginPath(); g.arc(fx(x), fy(y), 3.5, 0, Math.PI * 2); g.fill(); } }
     }
     (opts.marks || []).forEach(x => { g.strokeStyle = css("--bad"); g.setLineDash([3, 3]); g.beginPath(); g.moveTo(fx(x), pad.t); g.lineTo(fx(x), h - pad.b); g.stroke(); g.setLineDash([]); });
   }
@@ -140,7 +141,7 @@
     });
     V().innerHTML = `<div class="empty">جارٍ التحميل…</div>`;
     try {
-      const fn = { overview, sessions, session, coverage, cells, cell, obstacles, devices, settings }[page] || overview;
+      const fn = { overview, sessions, session, coverage, cells, cell, obstacles, compare, devices, settings }[page] || overview;
       await fn(id);
     } catch (e) { V().innerHTML = `<div class="card"><p class="err">${esc(e.message)}</p></div>`; }
   }
@@ -399,6 +400,160 @@
       finally { $("oRun").disabled = false; $("oRun").textContent = "تشغيل التحليل الآن"; }
     };
     await load();
+  }
+
+  // ------------------------------------------------------------------ comparison reports
+  const CMP_A = "#0284C7", CMP_B = "#D97706";
+  const CMP_MODES = {
+    ba:    { ar: "قبل وبعد",     hint: "فترتان زمنيتان للمكان نفسه، مثلاً قبل إضافة برج وبعده.", group: ["from", "to"], names: ["قبل", "بعد"] },
+    op:    { ar: "المشغّلون",    hint: "مشغّلان في الفترة والمكان نفسيهما.", group: ["op"], names: null },
+    hours: { ar: "أوقات اليوم",  hint: "ساعات الذروة مقابل الساعات الهادئة (بتوقيت البصرة).", group: ["hours"], names: null },
+    custom:{ ar: "مخصص",         hint: "كل شروط المجموعتين حرة.", group: ["op", "tech", "from", "to", "hours", "session"], names: ["المجموعة A", "المجموعة B"] },
+  };
+  const CMP_FIELDS = ["op", "tech", "from", "to", "hours", "session"];
+  async function compare() {
+    const [o, ss] = await Promise.all([api("v1/overview"), api("v1/sessions?limit=200")]);
+    let mode = localGet("cmp_mode") || "ba";
+    const opOpts = `<option value="">الكل</option>` + o.operators.map(p => `<option value="${p.mcc}-${p.mnc}">${esc(opName(p.mcc, p.mnc))} (${p.mcc}-${String(p.mnc).padStart(2, "0")})</option>`).join("");
+    const hOpts = `<option value="">—</option>` + Array.from({ length: 24 }, (_, h) => `<option value="${h}">${String(h).padStart(2, "0")}:00</option>`).join("");
+    const sOpts = `<option value="">كل الجلسات</option>` + ss.map(s => `<option value="${s.id}">${esc(s.name || "جلسة " + s.id)} · ${esc(s.device_name)}</option>`).join("");
+    const fieldHtml = (p) => `
+      <label class="f" data-f="op">المشغّل<select class="sel" id="${p}op">${opOpts}</select></label>
+      <label class="f" data-f="tech">التقنية<select class="sel" id="${p}tech"><option value="">الكل</option><option>LTE</option><option>NR</option></select></label>
+      <label class="f" data-f="from">من تاريخ<input class="inp" type="date" id="${p}from"></label>
+      <label class="f" data-f="to">إلى تاريخ<input class="inp" type="date" id="${p}to"></label>
+      <label class="f" data-f="hours">من الساعة<select class="sel" id="${p}hf">${hOpts}</select></label>
+      <label class="f" data-f="hours">إلى الساعة<select class="sel" id="${p}ht">${hOpts}</select></label>
+      <label class="f" data-f="session">الجلسة<select class="sel" id="${p}session">${sOpts}</select></label>`;
+    V().innerHTML = `
+      <div class="row spread" style="margin-bottom:6px"><h1>المقارنة</h1><button class="btn sm noprint" id="cPrint" type="button" hidden>طباعة / PDF</button></div>
+      <p class="muted" style="margin-top:0">قارن مجموعتين من القراءات. المقارنة العادلة تتم في <b>الأماكن المشتركة فقط</b>، لأن الفرق الإجمالي قد يعكس اختلاف أماكن القياس لا الشبكة.</p>
+      <div class="card noprint">
+        <div class="row" id="cModes" style="margin-bottom:10px">${Object.entries(CMP_MODES).map(([k, m]) => `<button class="btn sm" type="button" data-m="${k}">${m.ar}</button>`).join("")}</div>
+        <p class="note" id="cHint"></p>
+        <div class="grid g2" style="gap:10px">
+          <div class="card" style="border-color:${CMP_A};box-shadow:none"><h3 style="color:${CMP_A}">المجموعة A</h3><div class="filters" style="margin:0">${fieldHtml("a")}</div></div>
+          <div class="card" style="border-color:${CMP_B};box-shadow:none"><h3 style="color:${CMP_B}">المجموعة B</h3><div class="filters" style="margin:0">${fieldHtml("b")}</div></div>
+        </div>
+        <h3 style="margin-top:12px">شروط مشتركة</h3>
+        <div class="filters" id="cShared">${fieldHtml("s")}
+          <label class="f">حجم المربع<select class="sel" id="cSize"><option value="100">100 m</option><option value="150" selected>150 m</option><option value="300">300 m</option><option value="500">500 m</option></select></label>
+        </div>
+        <div class="row"><button class="btn primary" id="cGo" type="button">قارن</button><button class="btn" id="cBox" type="button" hidden>قارن داخل المنطقة الظاهرة في الخريطة</button></div>
+      </div>
+      <div id="cOut"></div>`;
+    const setMode = m => {
+      mode = m; localSet("cmp_mode", m);
+      $("cModes").querySelectorAll("button").forEach(b => b.classList.toggle("primary", b.dataset.m === m));
+      $("cHint").textContent = CMP_MODES[m].hint;
+      const g = CMP_MODES[m].group;
+      for (const p of ["a", "b"]) V().querySelectorAll(`#${p}op, #${p}tech, #${p}from, #${p}to, #${p}hf, #${p}ht, #${p}session`).forEach(el => { el.closest("label").hidden = !g.includes(el.closest("label").dataset.f); });
+      $("cShared").querySelectorAll("label[data-f]").forEach(l => { l.hidden = g.includes(l.dataset.f) || l.dataset.f === "session"; });
+    };
+    $("cModes").querySelectorAll("button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+    // قيم افتراضية مفيدة
+    const today = new Date(), iso = d => new Date(d.getTime() + 3 * 3600e3).toISOString().slice(0, 10);
+    $("afrom").value = iso(new Date(today - 60 * 864e5)); $("ato").value = iso(new Date(today - 30 * 864e5));
+    $("bfrom").value = iso(new Date(today - 30 * 864e5 + 864e5)); $("bto").value = iso(today);
+    $("ahf").value = "17"; $("aht").value = "23"; $("bhf").value = "0"; $("bht").value = "6";
+    if (o.operators[0]) $("aop").value = `${o.operators[0].mcc}-${o.operators[0].mnc}`;
+    if (o.operators[1]) $("bop").value = `${o.operators[1].mcc}-${o.operators[1].mnc}`;
+    setMode(CMP_MODES[mode] ? mode : "ba");
+
+    const read = (p, fields) => {
+      const out = {}, v = id => $(p + id) && $(p + id).value;
+      if (fields.includes("op") && v("op")) { const [mcc, mnc] = v("op").split("-"); out.mcc = +mcc; out.mnc = +mnc; }
+      if (fields.includes("tech") && v("tech")) out.tech = v("tech");
+      if (fields.includes("from") && v("from")) out.from = Date.parse(v("from") + "T00:00:00+03:00");
+      if (fields.includes("to") && v("to")) out.to = Date.parse(v("to") + "T23:59:59+03:00");
+      if (fields.includes("hours") && v("hf") !== "" && v("ht") !== "") { out.hour_from = +v("hf"); out.hour_to = +v("ht"); }
+      if (fields.includes("session") && v("session")) out.session = +v("session");
+      return out;
+    };
+    const label = (p, g) => {
+      const m = CMP_MODES[mode];
+      if (m.names) return m.names[p === "a" ? 0 : 1];
+      if (mode === "op") { const sel = $(p + "op"); return sel.value ? sel.options[sel.selectedIndex].text.replace(/ \(.*\)$/, "") : "كل المشغّلين"; }
+      if (mode === "hours") return g.hour_from !== undefined ? `${String(g.hour_from).padStart(2, "0")}:00–${String(g.hour_to).padStart(2, "0")}:59` : "كل الساعات";
+      return p.toUpperCase();
+    };
+    let map = null;
+    async function run(bbox) {
+      const g = CMP_MODES[mode].group, sharedFields = CMP_FIELDS.filter(f => !g.includes(f) && f !== "session");
+      const a = read("a", g), b = read("b", g), shared = Object.assign(read("s", sharedFields), { size: +$("cSize").value });
+      if (bbox) shared.bbox = bbox;
+      $("cGo").disabled = true; $("cGo").textContent = "جارٍ الحساب…";
+      try {
+        const r = await api("v1/compare", { method: "POST", body: { a, b, shared } });
+        renderCompare(r, label("a", a), label("b", b), !!bbox);
+      } catch (e) { toast(e.message); }
+      finally { $("cGo").disabled = false; $("cGo").textContent = "قارن"; }
+    }
+    $("cGo").onclick = () => run(null);
+    $("cBox").onclick = () => { if (!map) return; const bb = map.getBounds(); run([bb.getWest(), bb.getSouth(), bb.getEast(), bb.getNorth()].map(v => v.toFixed(5)).join(",")); };
+    $("cPrint").onclick = () => window.print();
+
+    async function renderCompare(r, la, lb, boxed) {
+      const A = r.a, B = r.b, P = r.paired;
+      const dl = (x, y, d = 1, higherBetter = true) => {
+        if (!isNum(x) || !isNum(y)) return "—";
+        const v = y - x, good = higherBetter ? v > 0 : v < 0, s = (v > 0 ? "+" : "") + fmt(v, d);
+        return Math.abs(v) < Math.pow(10, -d) ? `<span class="mono">0</span>` : `<b class="mono" style="color:${good ? "var(--good,#16a34a)" : "var(--bad,#dc2626)"}">${bd(s)}</b>`;
+      };
+      let verdict, level;
+      if (!A.samples || !B.samples) { level = "bad"; verdict = `لا توجد قراءات في ${!A.samples ? "«" + esc(la) + "»" : "«" + esc(lb) + "»"} بهذه الشروط. وسّع الفترة أو غيّر المرشّحات.`; }
+      else if (P.squares >= 5) {
+        const d = P.median_diff, better = d > 0, sig = P.p_value !== null && P.p_value < 0.05;
+        level = Math.abs(d) < 3 ? "good" : (better ? "good" : "warn");
+        verdict = `في <b>${fmt(P.squares)}</b> مربعاً مشتركاً (${P.size_m} م)، «${esc(lb)}» ${Math.abs(d) < 0.5 ? "مماثل لـ" : better ? "أقوى من" : "أضعف من"} «${esc(la)}» بوسيط فرق <b>${bd((d > 0 ? "+" : "") + fmt(d, 1) + " dB")}</b>: تحسّن في ${P.improved} مربعاً، وساء في ${P.worse}، وتقارب (أقل من 3 dB) في ${P.same}. `
+          + (sig ? `الفرق <b>ذو دلالة إحصائية</b> (${bd(P.p_value < 0.001 ? "p < 0.001" : "p = " + fmt(P.p_value, 3))}).` : `الفرق <b>ليس ذا دلالة إحصائية كافية</b> (p = ${bd(fmt(P.p_value ?? 1, 3))})، فقد يكون عشوائياً.`);
+      } else {
+        level = "warn";
+        const d = isNum(A.rsrp.median) && isNum(B.rsrp.median) ? B.rsrp.median - A.rsrp.median : null;
+        verdict = `الأماكن المشتركة بين المجموعتين قليلة (${P.squares} مربع)، فلا تصح مقارنة عادلة. الفرق الإجمالي في وسيط RSRP ${d === null ? "—" : bd((d > 0 ? "+" : "") + fmt(d, 1) + " dB")} قد يعكس <b>اختلاف أماكن القياس لا الشبكة</b>. سجّل المجموعتين في المسار نفسه، أو كبّر حجم المربع.`;
+      }
+      const per = g => g.from ? `${new Date(g.from).toLocaleDateString("ar-IQ")} – ${new Date(g.to).toLocaleDateString("ar-IQ")}` : "—";
+      const row = (l, a, b, d) => `<tr><td>${l}</td><td class="n">${a}</td><td class="n">${b}</td><td class="n">${d}</td></tr>`;
+      const ob = (g) => g.obstacles && g.obstacles.n ? fmt(g.obstacles.excess, 1) + " dB" : "—";
+      $("cOut").innerHTML = `
+        <div class="card" style="margin-top:14px"><ul class="diag"><li class="${level}">${verdict}</li></ul></div>
+        <div class="grid g2" style="margin-top:14px">
+          <div class="card span2"><h3>المقاييس</h3><div class="tablewrap"><table>
+            <tr><th>المقياس</th><th style="color:${CMP_A}">A · ${esc(la)}</th><th style="color:${CMP_B}">B · ${esc(lb)}</th><th>الفرق (B − A)</th></tr>
+            ${row("القراءات", fmt(A.samples), fmt(B.samples), "")}
+            ${row("الجلسات · الأجهزة", `${A.sessions} · ${A.devices}`, `${B.sessions} · ${B.devices}`, "")}
+            ${row("الفترة الفعلية", per(A), per(B), "")}
+            ${row("وسيط RSRP (dBm)", fmt(A.rsrp.median), fmt(B.rsrp.median), dl(A.rsrp.median, B.rsrp.median, 0))}
+            ${row("أضعف 10% (P10)", fmt(A.rsrp.p10), fmt(B.rsrp.p10), dl(A.rsrp.p10, B.rsrp.p10, 0))}
+            ${row("أفضل 10% (P90)", fmt(A.rsrp.p90), fmt(B.rsrp.p90), dl(A.rsrp.p90, B.rsrp.p90, 0))}
+            ${row("وسيط SINR (dB)", fmt(A.sinr.median, 1), fmt(B.sinr.median, 1), dl(A.sinr.median, B.sinr.median, 1))}
+            ${row("وسيط RSRQ (dB)", fmt(A.rsrq.median), fmt(B.rsrq.median), dl(A.rsrq.median, B.rsrq.median, 0))}
+            ${row("تغطية جيدة فأفضل (≥ −90)", A.good_pct === null ? "—" : fmt(A.good_pct, 1) + "%", B.good_pct === null ? "—" : fmt(B.good_pct, 1) + "%", dl(A.good_pct, B.good_pct, 1))}
+            ${row("انقطاع الخدمة", A.no_service_pct === null ? "—" : fmt(A.no_service_pct, 1) + "%", B.no_service_pct === null ? "—" : fmt(B.no_service_pct, 1) + "%", dl(A.no_service_pct, B.no_service_pct, 1, false))}
+            ${row("الخلايا المخدِّمة", fmt(A.cells), fmt(B.cells), "")}
+            ${row("متوسط الفقد الزائد (العوائق)", ob(A), ob(B), "")}
+          </table></div><p class="note">مقاييس الإشارة من RSRP لشبكات LTE و5G. «الفرق» لونه أخضر إذا كانت B أفضل.</p></div>
+          <div class="card"><h3>توزيع RSRP</h3><canvas class="chart" id="cHist"></canvas>
+            <div class="legend"><span><i style="background:${CMP_A}"></i>A · ${esc(la)}</span><span><i style="background:${CMP_B}"></i>B · ${esc(lb)}</span><span>المحور الأفقي dBm، والعمودي % من القراءات</span></div></div>
+          <div class="card"><h3>متوسط RSRP حسب ساعة اليوم</h3><canvas class="chart" id="cHours"></canvas>
+            <div class="legend"><span><i style="background:${CMP_A}"></i>A</span><span><i style="background:${CMP_B}"></i>B</span><span>بتوقيت البصرة</span></div></div>
+          <div class="card span2"><h3>الفرق في الأماكن المشتركة (B − A)</h3><div class="map" id="cMap"></div>
+            <div class="legend"><span><i style="background:#16a34a"></i>B أقوى بـ 10 dB فأكثر</span><span><i style="background:#86efac"></i>أقوى بـ 3</span><span><i style="background:#cbd5e1"></i>متقارب</span><span><i style="background:#fca5a5"></i>أضعف بـ 3</span><span><i style="background:#dc2626"></i>أضعف بـ 10 فأكثر</span></div>
+            <p class="note">${boxed ? "المقارنة محصورة في المنطقة التي كانت ظاهرة في الخريطة. " : ""}كل مربع يحتاج ${r.notes.min_per_square} قراءات على الأقل من كل مجموعة.</p></div>
+        </div>`;
+      $("cPrint").hidden = false; $("cBox").hidden = false;
+      lineChart($("cHist"), [{ color: CMP_A, data: A.hist }, { color: CMP_B, data: B.hist }], { yMin: 0, xLabel: x => String(Math.round(x)) });
+      const hrs = g => Array.from({ length: 24 }, (_, h) => { const x = g.hours.find(v => v.h === h); return [h, x ? x.rsrp : null]; });
+      lineChart($("cHours"), [{ color: CMP_A, data: hrs(A) }, { color: CMP_B, data: hrs(B) }], { dots: true, xLabel: x => String(Math.round(x)).padStart(2, "0") });
+      if (map) { try { map.remove(); } catch (_) { } maps.splice(maps.indexOf(map), 1); }
+      map = await makeMap($("cMap"));
+      map.addSource("d", { type: "geojson", data: r.grid });
+      map.addLayer({ id: "d", type: "fill", source: "d", paint: {
+        "fill-color": ["interpolate", ["linear"], ["get", "d"], -10, "#dc2626", -3, "#fca5a5", 0, "#cbd5e1", 3, "#86efac", 10, "#16a34a"],
+        "fill-opacity": 0.78, "fill-outline-color": "#0003" } });
+      popupOn(map, "d", p => `الفرق <b class="mono">${p.d > 0 ? "+" : ""}${p.d}</b> dB<br>A: ${p.ra} dBm (${p.na} قراءة)<br>B: ${p.rb} dBm (${p.nb} قراءة)`);
+      if (r.grid.features.length) fit(map, r.grid.features.flatMap(f => f.geometry.coordinates[0]), 15);
+    }
   }
 
   async function devices() {
