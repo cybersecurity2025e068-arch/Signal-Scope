@@ -115,6 +115,11 @@ try {
             if (function_exists('opcache_invalidate')) @opcache_invalidate($file, true);
             Http::json(['ok' => true, 'message' => 'أُنشئ رمز جديد في signalscope/DEPLOY-TOKEN.txt وأُلغي القديم', 'at' => gmdate('c')]);
         }
+        if ($method === 'POST' && ($_GET['action'] ?? '') === 'amu-link') {
+            // روابط «منظومة راصد الإشارة» في بوابة القسم /amu/ (إضافة قابلة للتراجع بـ mode=revert)
+            $doc = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
+            Http::json(($_GET['mode'] ?? '') === 'revert' ? AmuLink::revert($doc) : AmuLink::apply($doc));
+        }
         if (($_GET['action'] ?? '') === 'diag') {   // إحصاءات مجمعة للتحقق من التحليل (بلا بيانات شخصية)
             $db = ss_db();
             $rows = function (string $sql) use ($db) { return $db->query($sql)->fetchAll(); };
