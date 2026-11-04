@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>حوض الأمواج</title>
+<meta name="description" content="محاكي حوض أمواج تفاعلي ثنائي وثلاثي الأبعاد بمحرك FDTD: انعكاس، حيود، تشتت، انكسار، امتصاص.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#090C12; --bg2:#0E131C; --panel:#111824; --panel2:#162031; --line:#212B3E; --line2:#2C3953;
+  --fg:#DCE4F0; --muted:#8C98AF; --dim:#5D6A84;
+  --accent:#F2A93B; --signal:#62D2FF; --good:#3DDC97; --bad:#FF5F6D; --violet:#B48CFF;
+  --f-body:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:10px; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:13px;line-height:1.55;min-height:100vh}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.app{max-width:1500px;margin:0 auto;padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.mark{width:38px;height:38px;border-radius:9px;border:1px solid var(--line2);background:var(--panel);display:grid;place-items:center;flex:none}
+.brand h1{margin:0;font-size:18px;font-weight:700}
+.brand p{margin:0;color:var(--muted);font-size:12px}
+.bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line2);background:var(--panel);padding:6px 12px;border-radius:8px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn[aria-pressed="true"],.btn.pri{background:color-mix(in srgb,var(--accent) 18%,var(--panel));border-color:var(--accent);color:var(--accent)}
+.btn.sm{padding:3px 9px;font-size:12px}
+.btn.danger{color:var(--bad)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--panel);padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 22%,var(--panel));color:var(--accent);font-weight:600}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start}
+@media (max-width:900px){.work{grid-template-columns:1fr}}
+.stage{position:relative;direction:ltr;background:#05080d;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;aspect-ratio:1/1;width:100%;max-height:calc(100vh - 110px);margin-inline:auto;touch-action:none;user-select:none;-webkit-user-select:none}
+@media (max-width:900px){.stage{max-height:none}}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#cv2d{image-rendering:auto}
+#gl{display:none}
+.stage.mode3d #gl{display:block}
+.stage.mode3d #cv2d,.stage.mode3d #ov{display:none}
+.hud{position:absolute;top:8px;left:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;direction:rtl}
+.hud .pill{pointer-events:none}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--bg2) 85%,transparent);font-size:11.5px;color:var(--muted)}
+.pill b{color:var(--fg);font-weight:500}
+.cards{position:absolute;inset:0;pointer-events:none;direction:rtl}
+.pcard{position:absolute;width:190px;background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line2);border-radius:9px;padding:6px 8px;pointer-events:auto;box-shadow:0 6px 20px rgba(0,0,0,.4);font-size:11.5px}
+.pcard .h{display:flex;justify-content:space-between;align-items:center;gap:6px;color:var(--muted);cursor:grab}
+.pcard .h b{color:var(--signal)}
+.pcard canvas{position:static;width:100%;height:54px;display:block;margin:4px 0;background:#070b11;border-radius:5px}
+.pcard .v{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;text-align:center}
+.pcard .v span{display:block;color:var(--dim);font-size:10px}
+.pcard .x{border:0;background:none;color:var(--dim);cursor:pointer;padding:0 2px;font-size:14px;line-height:1}
+.mode3d .pcard{position:static;margin:6px}
+.mode3d .cards{display:flex;flex-direction:column;align-items:flex-end;inset:auto 0 0 auto;top:40px}
+.side{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px}
+details.card>summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.card>summary::after{content:"▾";color:var(--dim)}
+details.card:not([open])>summary::after{content:"◂"}
+details.card>summary::-webkit-details-marker{display:none}
+.hd{font-weight:600;margin:0 0 8px}
+.pal{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.pal button{border:1px dashed var(--line2);background:var(--bg2);border-radius:8px;padding:7px 4px;cursor:grab;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;touch-action:none}
+.pal button:hover{border-color:var(--accent);color:var(--accent)}
+.pal svg{width:26px;height:26px}
+.presets{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px}
+.presets button{text-align:start}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.f{display:grid;grid-template-columns:96px 1fr 52px;align-items:center;gap:8px;margin:6px 0}
+.f label{color:var(--muted);font-size:12px}
+.f output{font-family:var(--f-mono);font-size:11.5px;text-align:left;direction:ltr}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select{background:var(--bg2);border:1px solid var(--line2);border-radius:7px;padding:4px 6px}
+.note{color:var(--muted);font-size:12px;margin:6px 0 0}
+.empty{color:var(--dim);font-size:12px}
+.ghost{position:fixed;z-index:50;pointer-events:none;padding:6px 10px;border-radius:8px;background:var(--accent);color:#1b1305;font-weight:600;transform:translate(-50%,-50%);box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-inline-end:4px}
+a{color:var(--signal)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <div class="mark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#62D2FF" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9"/><path d="M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8" opacity=".55"/></svg></div>
+      <div><h1>حوض الأمواج</h1><p>محرك FDTD لمعادلة الموجة · انعكاس · حيود · تشتت · انكسار · امتصاص</p></div>
+    </div>
+    <div class="bar">
+      <button class="btn pri" id="bPlay" type="button">إيقاف مؤقت</button>
+      <button class="btn" id="bStep" type="button" title="خطوة واحدة">خطوة</button>
+      <button class="btn" id="bClear" type="button" title="مسح الأمواج مع إبقاء العناصر">مسح الأمواج</button>
+      <div class="seg" role="group" aria-label="نمط العرض"><button type="button" id="v2" aria-pressed="true">2D</button><button type="button" id="v3" aria-pressed="false">3D</button></div>
+      <a class="btn" href="index.html">راصد الإشارة</a>
+    </div>
+  </header>
+
+  <div class="work">
+    <div>
+      <div class="stage" id="stage">
+        <canvas id="cv2d"></canvas>
+        <canvas id="ov"></canvas>
+        <canvas id="gl"></canvas>
+        <div class="hud"><span class="pill">λ <b class="mono" id="hLam">—</b></span><span class="pill">FPS <b class="mono" id="hFps">—</b></span><span class="pill"><b id="hHint">اسحب العناصر · انقر نقرتين لقطرة</b></span></div>
+        <div class="cards" id="cards"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <aside class="side">
+      <div class="card">
+        <div class="hd">العناصر <span class="note">اسحبها إلى الحوض أو انقرها</span></div>
+        <div class="pal" id="pal"></div>
+      </div>
+      <details class="card" open>
+        <summary>تجارب جاهزة</summary>
+        <div class="presets" id="presets"></div>
+      </details>
+      <div class="card" id="selCard">
+        <div class="row" style="justify-content:space-between"><div class="hd" style="margin:0" id="selTitle">لا يوجد عنصر محدد</div><button class="btn sm danger" id="bDel" type="button" hidden>حذف</button></div>
+        <div id="selProps"><p class="empty">انقر أي عنصر في الحوض لتعديل خصائصه. المقبض الدائري يدوّر العنصر.</p></div>
+      </div>
+      <details class="card">
+        <summary>المحاكاة والعرض</summary>
+        <div class="f"><label for="sSpeed">السرعة</label><input type="range" id="sSpeed" min="1" max="8" value="3"><output id="oSpeed">3</output></div>
+        <div class="f"><label for="sGrid">الشبكة</label><select id="sGrid"><option value="120">120 × 120</option><option value="180" selected>180 × 180</option><option value="240">240 × 240</option></select><output></output></div>
+        <div class="f"><label for="sDamp">تخميد عام</label><input type="range" id="sDamp" min="0" max="20" value="0"><output id="oDamp">0</output></div>
+        <div class="f"><label for="sEdge">الحواف</label><select id="sEdge"><option value="open" selected>ماصة (حوض مفتوح)</option><option value="hard">عاكسة (جدار)</option></select><output></output></div>
+        <div class="f"><label for="sView">التلوين</label><select id="sView"><option value="amp" selected>السعة اللحظية</option><option value="int">الشدة (متوسط زمني)</option></select><output></output></div>
+        <div class="f"><label for="sGain">تضخيم الألوان</label><input type="range" id="sGain" min="2" max="40" value="10"><output id="oGain">1.0</output></div>
+        <div class="f"><label for="sH">ارتفاع 3D</label><input type="range" id="sH" min="1" max="40" value="12"><output id="oH">12</output></div>
+        <p class="note">في 3D: اسحب لتدوير الكاميرا، والعجلة أو قرص الإصبعين للتقريب. السحب والإفلات للعناصر يعمل في 2D.</p>
+      </details>
+      <details class="card">
+        <summary>كيف يعمل</summary>
+        <p class="note">يحل المحرك معادلة الموجة المخمّدة <span class="mono" dir="ltr">∂²u/∂t² + γ∂u/∂t = c²∇²u</span> بالفروق المحدودة في الزمن (FDTD) على شبكة مربعة، مع مؤثر لابلاس ذي النقاط الخمس. الجدران تثبّت السعة عند الصفر فتعكس الموجة. الأوساط الرمادية (العدسة، المنشور، اللوح) تخفض السرعة إلى <span class="mono">c/n</span> فتنكسر الموجة. الماص يرفع التخميد تدريجياً، والحواف الماصة طبقة إسفنجية تمنع الارتداد.</p>
+        <p class="note">المجس يسجل السعة في نقطته، ويحسب السعة القصوى A والتردد من عبور الصفر. يجب أن يطابق التردد المقاس تردد المصدر.</p>
+      </details>
+    </aside>
+  </div>
+</div>
+<div class="ghost" id="ghost" hidden></div>
+
+<script>
+(function () {
+"use strict";
+/* ============================================================ constants */
+const DT = 1 / 50;          // ثانية محاكاة لكل خطوة
+const K = 0.36;              // (c·dt/dx)²  →  c = 0.6 خلية/خطوة = 30 خلية/ثانية (مستقر: ≤ 0.5)
+const C_CELLS = Math.sqrt(K) / DT;   // خلية/ثانية
+const SPONGE = 22;
+const SRC_POINT_GAIN = 23.5;   // معايرة: سعة ≈ A على بعد طول موجي واحد من المصدر النقطي
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const rad = d => d * Math.PI / 180;
+
+/* ============================================================ state */
+const S = {
+  N: 180, u: null, up: null, wall: null, c2: null, damp: null, kind: null, inten: null,
+  t: 0, steps: 0, running: true, speed: 3, gDamp: 0, edge: "open", view: "amp", gain: 1, hScale: 12,
+  mode: "2d", objects: [], sources: [], probes: [], sel: null, dirty: true, nextId: 1,
+};
+
+/* ============================================================ element catalogue */
+const ICON = {
+  point: '<circle cx="12" cy="12" r="2.4" fill="currentColor"/><circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" opacity=".6"/><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" opacity=".3"/>',
+  line: '<path d="M6 4v16" stroke="currentColor" stroke-width="2.4"/><path d="M11 6v12M16 7v10" stroke="currentColor" opacity=".45"/>',
+  double: '<circle cx="8" cy="12" r="2.2" fill="currentColor"/><circle cx="16" cy="12" r="2.2" fill="currentColor"/><circle cx="8" cy="12" r="6" fill="none" stroke="currentColor" opacity=".4"/><circle cx="16" cy="12" r="6" fill="none" stroke="currentColor" opacity=".4"/>',
+  wall: '<rect x="4" y="10" width="16" height="4" rx="1" fill="currentColor"/>',
+  slit1: '<path d="M12 3v7M12 14v7" stroke="currentColor" stroke-width="3"/>',
+  slit2: '<path d="M12 2v5M12 10v4M12 17v5" stroke="currentColor" stroke-width="3"/>',
+  mirror: '<path d="M7 3c8 4 8 14 0 18" fill="none" stroke="currentColor" stroke-width="2.6"/>',
+  lens: '<path d="M12 3c4 4 4 14 0 18c-4-4-4-14 0-18z" fill="currentColor" opacity=".55" stroke="currentColor"/>',
+  prism: '<path d="M12 4l8 15H4z" fill="currentColor" opacity=".55" stroke="currentColor"/>',
+  slab: '<rect x="6" y="4" width="12" height="16" rx="1" fill="currentColor" opacity=".45" stroke="currentColor"/>',
+  absorber: '<rect x="6" y="4" width="12" height="16" rx="1" fill="none" stroke="currentColor"/><path d="M6 8l12 0M6 12h12M6 16h12" stroke="currentColor" opacity=".5"/>',
+  rough: '<g fill="currentColor"><circle cx="8" cy="6" r="1.4"/><circle cx="14" cy="8" r="1.2"/><circle cx="10" cy="12" r="1.5"/><circle cx="16" cy="14" r="1.3"/><circle cx="8" cy="17" r="1.2"/><circle cx="13" cy="19" r="1.4"/></g>',
+  probe: '<circle cx="12" cy="12" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v6M12 16v6M2 12h6M16 12h6" stroke="currentColor" stroke-width="1.6"/>',
+};
+// خصائص قابلة للتعديل: [المفتاح، التسمية، أدنى، أعلى، خطوة، الوحدة]
+const TYPES = {
+  point:   { ar: "مصدر نقطي",  cat: "source", def: { f: 1.5, A: 1 }, props: [["f","التردد",0.5,4,0.05,"Hz"],["A","السعة",0.2,2,0.1,""]] },
+  line:    { ar: "مصدر خطي",   cat: "source", def: { f: 1.5, A: 1, len: 90, rot: 90 }, props: [["f","التردد",0.5,4,0.05,"Hz"],["A","السعة",0.2,2,0.1,""],["len","الطول",10,240,1,"خلية"],["rot","الاتجاه",0,359,1,"°"]] },
+  double:  { ar: "مصدر مزدوج", cat: "source", def: { f: 1.5, A: 1, sep: 30, rot: 90, ph: 0 }, props: [["f","التردد",0.5,4,0.05,"Hz"],["A","السعة",0.2,2,0.1,""],["sep","التباعد",4,120,1,"خلية"],["ph","فرق الطور",0,360,5,"°"],["rot","الاتجاه",0,359,1,"°"]] },
+  wall:    { ar: "جدار عاكس",  cat: "obj", def: { w: 50, h: 4, rot: 0 }, props: [["w","الطول",4,240,1,"خلية"],["h","السماكة",2,40,1,"خلية"],["rot","الدوران",0,359,1,"°"]] },
+  slit1:   { ar: "شق مفرد",    cat: "obj", def: { len: 400, gap: 14, th: 3, rot: 90 }, props: [["gap","عرض الشق",2,80,1,"خلية"],["th","سماكة الحاجز",2,12,1,"خلية"],["len","طول الحاجز",20,400,1,"خلية"],["rot","الدوران",0,359,1,"°"]] },
+  slit2:   { ar: "شق مزدوج",   cat: "obj", def: { len: 400, gap: 6, sep: 30, th: 3, rot: 90 }, props: [["gap","عرض كل شق",2,40,1,"خلية"],["sep","تباعد الشقين",6,120,1,"خلية"],["th","سماكة الحاجز",2,12,1,"خلية"],["len","طول الحاجز",20,400,1,"خلية"],["rot","الدوران",0,359,1,"°"]] },
+  mirror:  { ar: "مرآة مقعرة", cat: "obj", def: { len: 110, foc: 35, rot: 0 }, props: [["len","العرض",20,240,1,"خلية"],["foc","البعد البؤري",8,200,1,"خلية"],["rot","الدوران",0,359,1,"°"]] },
+  lens:    { ar: "عدسة محدبة", cat: "obj", def: { a: 10, b: 45, n: 1.6, rot: 0 }, props: [["b","نصف الارتفاع",8,120,1,"خلية"],["a","نصف السماكة",3,40,1,"خلية"],["n","معامل الانكسار",1.05,2.5,0.05,""],["rot","الدوران",0,359,1,"°"]] },
+  prism:   { ar: "منشور",      cat: "obj", def: { size: 70, n: 1.6, rot: 0 }, props: [["size","الضلع",16,200,1,"خلية"],["n","معامل الانكسار",1.05,2.5,0.05,""],["rot","الدوران",0,359,1,"°"]] },
+  slab:    { ar: "وسط رمادي",  cat: "obj", def: { w: 40, h: 70, n: 1.5, rot: 0 }, props: [["w","العرض",4,240,1,"خلية"],["h","الارتفاع",4,240,1,"خلية"],["n","معامل الانكسار",1.05,2.5,0.05,""],["rot","الدوران",0,359,1,"°"]] },
+  absorber:{ ar: "ماص",        cat: "obj", def: { w: 30, h: 80, k: 0.15, rot: 0 }, props: [["w","العرض",4,240,1,"خلية"],["h","الارتفاع",4,240,1,"خلية"],["k","شدة الامتصاص",0.02,0.4,0.01,""],["rot","الدوران",0,359,1,"°"]] },
+  rough:   { ar: "سطح خشن",    cat: "obj", def: { w: 24, h: 70, dens: 0.16, rot: 0 }, props: [["w","العرض",4,160,1,"خلية"],["h","الارتفاع",4,240,1,"خلية"],["dens","الكثافة",0.03,0.5,0.01,""],["rot","الدوران",0,359,1,"°"]] },
+  probe:   { ar: "مجس قياس",   cat: "probe", def: {}, props: [] },
+};
+const PALETTE = ["point","line","double","wall","slit1","slit2","mirror","lens","prism","slab","absorber","rough","probe"];
+
+/* ============================================================ grid */
+function alloc(N) {
+  S.N = N; const n = N * N;
+  S.u = new Float32Array(n); S.up = new Float32Array(n);
+  S.wall = new Uint8Array(n); S.kind = new Uint8Array(n);
+  S.c2 = new Float32Array(n); S.damp = new Float32Array(n); S.inten = new Float32Array(n);
+  S.dirty = true;
+}
+function clearWaves() { S.u.fill(0); S.up.fill(0); S.inten.fill(0); S.t = 0; S.steps = 0; S.probes.forEach(p => { p.buf.fill(0); p.n = 0; }); }
+
+// يمر على خلايا الشبكة داخل مستطيل محلي (±hw, ±hh) مدوّر حول مركز العنصر
+function forLocal(o, hw, hh, fn) {
+  const N = S.N, c = Math.cos(rad(o.rot || 0)), s = Math.sin(rad(o.rot || 0));
+  const ex = Math.abs(hw * c) + Math.abs(hh * s), ey = Math.abs(hw * s) + Math.abs(hh * c);
+  const x0 = Math.max(0, Math.floor(o.x - ex - 1)), x1 = Math.min(N - 1, Math.ceil(o.x + ex + 1));
+  const y0 = Math.max(0, Math.floor(o.y - ey - 1)), y1 = Math.min(N - 1, Math.ceil(o.y + ey + 1));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const dx = x - o.x, dy = y - o.y;
+    const lx = dx * c + dy * s, ly = -dx * s + dy * c;
+    if (Math.abs(lx) <= hw && Math.abs(ly) <= hh) fn(lx, ly, y * N + x);
+  }
+}
+function rng(seed) { let s = seed >>> 0 || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
+
+// يبني خرائط الجدران والسرعة والتخميد من العناصر (تُستدعى عند أي تغيير)
+function rebuild() {
+  const N = S.N, n = N * N;
+  S.wall.fill(0); S.kind.fill(0); S.c2.fill(1); S.damp.fill(S.gDamp);
+  if (S.edge === "open") {
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const d = Math.min(x, y, N - 1 - x, N - 1 - y);
+      if (d < SPONGE) { const r = 1 - d / SPONGE; S.damp[y * N + x] += 0.32 * r * r; }
+    }
+  }
+  for (const o of S.objects) {
+    const t = o.type;
+    if (t === "wall") forLocal(o, o.w / 2, o.h / 2, (lx, ly, i) => { S.wall[i] = 1; });
+    else if (t === "slit1" || t === "slit2") {
+      forLocal(o, o.len / 2, o.th / 2, (lx, ly, i) => {
+        const open = t === "slit1" ? Math.abs(lx) < o.gap / 2 : (Math.abs(lx - o.sep / 2) < o.gap / 2 || Math.abs(lx + o.sep / 2) < o.gap / 2);
+        if (!open) S.wall[i] = 1;
+      });
+    } else if (t === "mirror") {
+      const sag = (o.len / 2) * (o.len / 2) / (4 * o.foc);
+      forLocal(o, o.len / 2, sag / 2 + 2.5, (lx, ly, i) => {
+        const yc = lx * lx / (4 * o.foc) - sag / 2;   // قطع مكافئ بؤرته عند ly = foc - sag/2
+        if (Math.abs(ly - yc) <= 1.6) S.wall[i] = 1;
+      });
+    } else if (t === "lens") {
+      forLocal(o, o.a, o.b, (lx, ly, i) => { if ((lx / o.a) ** 2 + (ly / o.b) ** 2 <= 1) { S.c2[i] = 1 / (o.n * o.n); S.kind[i] = 2; } });
+    } else if (t === "prism") {
+      const h = o.size * Math.sqrt(3) / 2;
+      forLocal(o, o.size / 2, h / 2, (lx, ly, i) => {
+        const yy = ly + h / 2;   // 0 عند الرأس العلوي
+        if (Math.abs(lx) <= (yy / h) * (o.size / 2)) { S.c2[i] = 1 / (o.n * o.n); S.kind[i] = 2; }
+      });
+    } else if (t === "slab") {
+      forLocal(o, o.w / 2, o.h / 2, (lx, ly, i) => { S.c2[i] = 1 / (o.n * o.n); S.kind[i] = 2; });
+    } else if (t === "absorber") {
+      const ramp = Math.min(8, o.w / 2);
+      forLocal(o, o.w / 2, o.h / 2, (lx, ly, i) => {
+        const d = Math.min(o.w / 2 - Math.abs(lx), o.h / 2 - Math.abs(ly));
+        const r = clamp(d / ramp, 0, 1);       // ارتفاع تدريجي يقلل الارتداد عن حافة الماص
+        S.damp[i] += o.k * r * r; S.kind[i] = 3;
+      });
+    } else if (t === "rough") {
+      const R = rng(o.seed), pts = Math.round(o.w * o.h * o.dens / 4);
+      const cs = Math.cos(rad(o.rot)), sn = Math.sin(rad(o.rot));
+      for (let k = 0; k < pts; k++) {
+        const lx = (R() - 0.5) * o.w, ly = (R() - 0.5) * o.h, r = 0.8 + R() * 1.6;
+        const cx = o.x + lx * cs - ly * sn, cy = o.y + lx * sn + ly * cs;
+        for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+          if (x < 0 || y < 0 || x >= N || y >= N) continue;
+          if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) S.wall[y * N + x] = 1;
+        }
+      }
+    }
+  }
+  for (let i = 0; i < n; i++) if (S.wall[i]) { S.kind[i] = 1; S.u[i] = 0; S.up[i] = 0; }
+  S.dirty = false; glKindDirty = true;
+}
+
+/* ============================================================ sources */
+function sourceCells(s) {
+  const N = S.N, out = [];
+  const push = (x, y, w, ph) => { const xi = Math.round(x), yi = Math.round(y); if (xi > 0 && yi > 0 && xi < N - 1 && yi < N - 1) out.push([yi * N + xi, w, ph]); };
+  if (s.type === "point") push(s.x, s.y, 1, 0);
+  else if (s.type === "double") {
+    const c = Math.cos(rad(s.rot)), sn = Math.sin(rad(s.rot));
+    push(s.x - c * s.sep / 2, s.y - sn * s.sep / 2, 1, 0);
+    push(s.x + c * s.sep / 2, s.y + sn * s.sep / 2, 1, rad(s.ph));
+  } else if (s.type === "line") {
+    const c = Math.cos(rad(s.rot)), sn = Math.sin(rad(s.rot)), L = s.len, taper = Math.max(4, L * 0.18);
+    const seen = new Set();
+    for (let k = -L / 2; k <= L / 2; k += 0.5) {
+      const d = L / 2 - Math.abs(k);
+      const w = d >= taper ? 1 : 0.5 - 0.5 * Math.cos(Math.PI * d / taper);   // حواف ناعمة (cosine taper)
+      const xi = Math.round(s.x + c * k), yi = Math.round(s.y + sn * k), key = yi * N + xi;
+      if (seen.has(key)) continue; seen.add(key); push(xi, yi, w, 0);
+    }
+  }
+  return out;
+}
+
+/* ============================================================ FDTD step */
+function step() {
+  const N = S.N, u = S.u, up = S.up, wall = S.wall, c2 = S.c2, damp = S.damp;
+  // up يحمل u(t-1) ويُكتب فيه u(t+1) ثم نبدّل
+  for (let y = 1; y < N - 1; y++) {
+    let i = y * N + 1;
+    for (let x = 1; x < N - 1; x++, i++) {
+      if (wall[i]) { up[i] = 0; continue; }
+      const lap = u[i - 1] + u[i + 1] + u[i - N] + u[i + N] - 4 * u[i];
+      const d = damp[i];
+      up[i] = (2 * u[i] - (1 - d) * up[i] + K * c2[i] * lap) / (1 + d);
+    }
+  }
+  S.up = u; S.u = up;
+  S.t += DT; S.steps++;
+  // المصادر «اللينة»: تضيف الطاقة دون أن تعكس الموجات العائدة (لا تجويف رنين وهمي)
+  // للمصدر الخطي: سعة الموجة المستوية الناتجة = q / (2·c·ω)، فنختار q لتساوي السعة المطلوبة A
+  for (const s of S.sources) {
+    const w = 2 * Math.PI * s.f, wStep = w * DT, ramp = Math.min(1, S.t * s.f);
+    const q = (s.type === "line" ? 2 * Math.sqrt(K) * wStep : SRC_POINT_GAIN * wStep) * s.A * ramp;
+    const cells = s._cells || (s._cells = sourceCells(s));
+    for (const [i, wt, ph] of cells) if (!wall[i]) S.u[i] += q * wt * Math.sin(w * S.t + ph);
+  }
+  // الحواف ثابتة عند الصفر (عاكسة)، والإسفنج قبلها يمتص في وضع الحوض المفتوح
+  // الشدة المتوسطة
+  if (S.view === "int" || S.probes.length) { const I = S.inten, uu = S.u, n = N * N; for (let i = 0; i < n; i++) I[i] += (uu[i] * uu[i] - I[i]) * 0.01; }
+  for (const p of S.probes) {
+    const xi = clamp(Math.round(p.x), 0, N - 1), yi = clamp(Math.round(p.y), 0, N - 1);
+    p.buf[p.n % p.buf.length] = S.u[yi * N + xi]; p.n++;
+  }
+}
+function addDrop(x, y, amp = 3) {
+  const N = S.N, r = 4;
+  for (let j = -r * 2; j <= r * 2; j++) for (let i = -r * 2; i <= r * 2; i++) {
+    const xx = Math.round(x) + i, yy = Math.round(y) + j;
+    if (xx < 1 || yy < 1 || xx >= N - 1 || yy >= N - 1) continue;
+    const k = yy * N + xx; if (S.wall[k]) continue;
+    const g = amp * Math.exp(-(i * i + j * j) / (r * r));
+    S.u[k] += g; S.up[k] += g;
+  }
+}
+
+/* ============================================================ 2D rendering */
+const cv = $("cv2d"), ctx = cv.getContext("2d"), ov = $("ov"), octx = ov.getContext("2d");
+let img = null, small = document.createElement("canvas"), sctx = small.getContext("2d");
+const BG = [[9, 28, 46], [150, 158, 170], [26, 44, 70], [40, 30, 22]];   // ماء، جدار، وسط بطيء، ماص
+function render2d() {
+  const N = S.N;
+  if (!img || img.width !== N) { small.width = small.height = N; img = sctx.createImageData(N, N); }
+  const d = img.data, u = S.u, kind = S.kind, n = N * N, g = S.gain;
+  let maxI = 1e-6;
+  if (S.view === "int") { for (let i = 0; i < n; i++) if (S.inten[i] > maxI && !S.wall[i]) maxI = S.inten[i]; }
+  for (let i = 0, p = 0; i < n; i++, p += 4) {
+    const k = kind[i], b = BG[k];
+    if (k === 1) { d[p] = b[0]; d[p + 1] = b[1]; d[p + 2] = b[2]; d[p + 3] = 255; continue; }
+    if (S.view === "int") {
+      const t = Math.sqrt(S.inten[i] / maxI) * Math.min(2, g / 2);   // ماغما مبسطة
+      const tt = clamp(t, 0, 1);
+      d[p] = clamp(b[0] + 255 * Math.min(1, tt * 1.6), 0, 255);
+      d[p + 1] = clamp(b[1] + 220 * Math.max(0, tt - 0.35) * 1.4, 0, 255);
+      d[p + 2] = clamp(b[2] + 150 * Math.max(0, tt - 0.7) * 2.5, 0, 255);
+    } else {
+      const v = clamp(u[i] * g, -1, 1);
+      if (v >= 0) { d[p] = b[0] + (255 - b[0]) * v; d[p + 1] = b[1] + (190 - b[1]) * v; d[p + 2] = b[2] + (90 - b[2]) * v; }
+      else { const w = -v; d[p] = b[0] + (98 - b[0]) * w * 0.9; d[p + 1] = b[1] + (210 - b[1]) * w; d[p + 2] = b[2] + (255 - b[2]) * w; }
+    }
+    d[p + 3] = 255;
+  }
+  sctx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(small, 0, 0, cv.width, cv.height);
+  drawOverlay();
+}
+function gx(x) { return (x + 0.5) * ov.width / S.N; }
+function gy(y) { return (y + 0.5) * ov.height / S.N; }
+function drawOverlay() {
+  const W = ov.width, sc = W / S.N, dpr = window.devicePixelRatio || 1;
+  octx.clearRect(0, 0, W, ov.height);
+  octx.lineWidth = 1.2 * dpr;
+  const outline = (o, hw, hh, col, dash) => {
+    octx.save(); octx.translate(gx(o.x), gy(o.y)); octx.rotate(rad(o.rot || 0));
+    octx.strokeStyle = col; octx.setLineDash(dash ? [5 * dpr, 4 * dpr] : []);
+    octx.strokeRect(-hw * sc, -hh * sc, 2 * hw * sc, 2 * hh * sc); octx.restore();
+  };
+  for (const o of S.objects) {
+    const sel = S.sel && S.sel.ref === o;
+    const col = sel ? "#F2A93B" : "rgba(220,228,240,.35)";
+    const [hw, hh] = extent(o);
+    if (o.type === "lens") { octx.save(); octx.translate(gx(o.x), gy(o.y)); octx.rotate(rad(o.rot)); octx.strokeStyle = col; octx.beginPath(); octx.ellipse(0, 0, o.a * sc, o.b * sc, 0, 0, Math.PI * 2); octx.stroke(); octx.restore(); }
+    else if (o.type === "prism") { const h = o.size * Math.sqrt(3) / 2; octx.save(); octx.translate(gx(o.x), gy(o.y)); octx.rotate(rad(o.rot)); octx.strokeStyle = col; octx.beginPath(); octx.moveTo(0, -h / 2 * sc); octx.lineTo(o.size / 2 * sc, h / 2 * sc); octx.lineTo(-o.size / 2 * sc, h / 2 * sc); octx.closePath(); octx.stroke(); octx.restore(); }
+    else if (o.type === "mirror") { if (sel) outline(o, hw, hh, col, true); }
+    else if (o.type !== "wall" && o.type !== "slit1" && o.type !== "slit2") outline(o, hw, hh, col, o.type === "rough" || o.type === "absorber");
+    else if (sel) outline(o, hw, hh, col, true);
+    if (o.type === "mirror") { // البؤرة
+      const sag = (o.len / 2) ** 2 / (4 * o.foc), fy = o.foc - sag / 2, c = Math.cos(rad(o.rot)), s = Math.sin(rad(o.rot));
+      const fx = o.x - s * fy, fyy = o.y + c * fy;
+      octx.fillStyle = sel ? "#F2A93B" : "rgba(220,228,240,.5)"; octx.beginPath(); octx.arc(gx(fx), gy(fyy), 3 * dpr, 0, Math.PI * 2); octx.fill();
+    }
+    if (sel) handle(o);
+  }
+  for (const s of S.sources) {
+    const sel = S.sel && S.sel.ref === s;
+    octx.strokeStyle = sel ? "#F2A93B" : "#62D2FF"; octx.fillStyle = octx.strokeStyle; octx.setLineDash([]);
+    if (s.type === "line") {
+      const c = Math.cos(rad(s.rot)), sn = Math.sin(rad(s.rot));
+      octx.lineWidth = 3 * dpr; octx.beginPath(); octx.moveTo(gx(s.x - c * s.len / 2), gy(s.y - sn * s.len / 2)); octx.lineTo(gx(s.x + c * s.len / 2), gy(s.y + sn * s.len / 2)); octx.stroke(); octx.lineWidth = 1.2 * dpr;
+    } else {
+      const pts = s.type === "point" ? [[s.x, s.y]] : [[s.x - Math.cos(rad(s.rot)) * s.sep / 2, s.y - Math.sin(rad(s.rot)) * s.sep / 2], [s.x + Math.cos(rad(s.rot)) * s.sep / 2, s.y + Math.sin(rad(s.rot)) * s.sep / 2]];
+      for (const [x, y] of pts) { octx.beginPath(); octx.arc(gx(x), gy(y), 4 * dpr, 0, Math.PI * 2); octx.fill(); octx.beginPath(); octx.arc(gx(x), gy(y), 9 * dpr, 0, Math.PI * 2); octx.stroke(); }
+      if (s.type === "double") { octx.setLineDash([3 * dpr, 3 * dpr]); octx.beginPath(); octx.moveTo(gx(pts[0][0]), gy(pts[0][1])); octx.lineTo(gx(pts[1][0]), gy(pts[1][1])); octx.stroke(); octx.setLineDash([]); }
+    }
+    if (sel && s.type !== "point") handle(s);
+  }
+  S.probes.forEach((p, k) => {
+    const sel = S.sel && S.sel.ref === p, x = gx(p.x), y = gy(p.y), r = 8 * dpr;
+    octx.strokeStyle = sel ? "#F2A93B" : "#3DDC97"; octx.lineWidth = 1.6 * dpr;
+    octx.beginPath(); octx.arc(x, y, r, 0, Math.PI * 2); octx.moveTo(x - r * 1.6, y); octx.lineTo(x - r * 0.4, y); octx.moveTo(x + r * 0.4, y); octx.lineTo(x + r * 1.6, y); octx.moveTo(x, y - r * 1.6); octx.lineTo(x, y - r * 0.4); octx.moveTo(x, y + r * 0.4); octx.lineTo(x, y + r * 1.6); octx.stroke();
+    octx.fillStyle = octx.strokeStyle; octx.font = `${11 * dpr}px IBM Plex Mono, monospace`; octx.fillText("P" + (k + 1), x + r + 3 * dpr, y - r);
+    octx.lineWidth = 1.2 * dpr;
+  });
+}
+function extent(o) {
+  switch (o.type) {
+    case "wall": case "slab": case "absorber": case "rough": return [o.w / 2, o.h / 2];
+    case "slit1": case "slit2": return [Math.min(o.len, S.N * 1.5) / 2, o.th / 2 + 2];
+    case "mirror": { const sag = (o.len / 2) ** 2 / (4 * o.foc); return [o.len / 2, sag / 2 + 3]; }
+    case "lens": return [o.a, o.b];
+    case "prism": return [o.size / 2, o.size * Math.sqrt(3) / 4];
+    case "line": return [o.len / 2, 3];
+    case "double": return [o.sep / 2 + 3, 4];
+    default: return [4, 4];
+  }
+}
+function handlePos(o) { const [hw, hh] = extent(o), r = Math.max(hh, 6) + 10, c = Math.cos(rad(o.rot || 0)), s = Math.sin(rad(o.rot || 0)); return [o.x + s * r, o.y - c * r]; }
+function handle(o) {
+  const [hx, hy] = handlePos(o), dpr = window.devicePixelRatio || 1;
+  octx.strokeStyle = "#F2A93B"; octx.setLineDash([2 * dpr, 3 * dpr]); octx.beginPath(); octx.moveTo(gx(o.x), gy(o.y)); octx.lineTo(gx(hx), gy(hy)); octx.stroke(); octx.setLineDash([]);
+  octx.fillStyle = "#F2A93B"; octx.beginPath(); octx.arc(gx(hx), gy(hy), 6 * dpr, 0, Math.PI * 2); octx.fill();
+}
+
+/* ============================================================ 3D (WebGL, بلا مكتبات) */
+const glc = $("gl");
+let gl = null, glP = null, glB = {}, glKindDirty = true, glN = 0, glDeriv = false, glZ = null, glOK = null;
+const cam = { yaw: -0.6, pitch: 0.75, dist: 2.6 };
+function glInit() {
+  if (glOK !== null) return glOK;
+  gl = glc.getContext("webgl", { antialias: true }) || glc.getContext("experimental-webgl");
+  if (!gl) return (glOK = false);
+  glDeriv = !!gl.getExtension("OES_standard_derivatives");
+  const vs = `attribute vec2 aXY; attribute float aZ; attribute float aK; uniform mat4 uM; uniform float uN;
+    varying vec3 vP; varying float vZ; varying float vK;
+    void main(){ vec3 p = vec3((aXY.x/uN-0.5)*2.0, aZ, (aXY.y/uN-0.5)*2.0); vP=p; vZ=aZ; vK=aK; gl_Position = uM*vec4(p,1.0); }`;
+  const fs = `${glDeriv ? "#extension GL_OES_standard_derivatives : enable\n" : ""}precision mediump float;
+    varying vec3 vP; varying float vZ; varying float vK; uniform float uH;
+    void main(){
+      vec3 base = vec3(0.04,0.12,0.2);
+      if (vK > 0.5 && vK < 1.5) base = vec3(0.62,0.66,0.72);
+      else if (vK > 1.5 && vK < 2.5) base = vec3(0.10,0.20,0.32);
+      else if (vK > 2.5) base = vec3(0.17,0.12,0.09);
+      vec3 col = base;
+      if (vK < 0.5 || vK > 1.5) { float v = clamp(vZ/uH, -1.0, 1.0);
+        col = v >= 0.0 ? mix(base, vec3(1.0,0.75,0.35), v) : mix(base, vec3(0.38,0.82,1.0), -v); }
+      ${glDeriv ? `vec3 n = normalize(cross(dFdx(vP), dFdy(vP))); if (n.y < 0.0) n = -n;
+      vec3 L = normalize(vec3(0.4,0.9,0.3)); float dif = max(dot(n,L),0.0);
+      vec3 V = normalize(vec3(0.0,1.0,0.6)); float sp = pow(max(dot(reflect(-L,n),V),0.0), 24.0);
+      col = col*(0.35+0.75*dif) + vec3(0.25)*sp;` : ""}
+      gl_FragColor = vec4(col,1.0);
+    }`;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  try {
+    glP = gl.createProgram(); gl.attachShader(glP, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(glP, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(glP);
+    if (!gl.getProgramParameter(glP, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(glP));
+  } catch (e) { console.error(e); return (glOK = false); }
+  glB.xy = gl.createBuffer(); glB.z = gl.createBuffer(); glB.k = gl.createBuffer(); glB.idx = gl.createBuffer();
+  return (glOK = true);
+}
+function glMesh() {
+  const N = S.N; glN = N;
+  const xy = new Float32Array(N * N * 2), idx = new Uint16Array((N - 1) * (N - 1) * 6);
+  for (let y = 0, p = 0; y < N; y++) for (let x = 0; x < N; x++) { xy[p++] = x; xy[p++] = y; }
+  for (let y = 0, p = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++) {
+    const a = y * N + x, b = a + 1, c = a + N, d = c + 1;
+    idx[p++] = a; idx[p++] = c; idx[p++] = b; idx[p++] = b; idx[p++] = c; idx[p++] = d;
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, glB.xy); gl.bufferData(gl.ARRAY_BUFFER, xy, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glB.idx); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  glZ = new Float32Array(N * N);
+  gl.bindBuffer(gl.ARRAY_BUFFER, glB.z); gl.bufferData(gl.ARRAY_BUFFER, glZ, gl.DYNAMIC_DRAW);
+  glKindDirty = true;
+}
+function m4mul(a, b) { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; }
+function persp(fov, asp, n, f) { const t = 1 / Math.tan(fov / 2), o = new Float32Array(16); o[0] = t / asp; o[5] = t; o[10] = (f + n) / (n - f); o[11] = -1; o[14] = 2 * f * n / (n - f); return o; }
+function lookAt(e, c, up) {
+  const z = norm([e[0] - c[0], e[1] - c[1], e[2] - c[2]]), x = norm(cross(up, z)), y = cross(z, x);
+  return new Float32Array([x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, e), -dot(y, e), -dot(z, e), 1]);
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+function render3d() {
+  if (!glInit()) return;
+  const N = S.N;
+  if (glN !== N) glMesh();
+  const hs = S.hScale / 100, n = N * N, u = S.u, kind = S.kind, wallH = 0.18;
+  for (let i = 0; i < n; i++) glZ[i] = kind[i] === 1 ? wallH : clamp(u[i] * hs, -0.6, 0.6);
+  gl.bindBuffer(gl.ARRAY_BUFFER, glB.z); gl.bufferSubData(gl.ARRAY_BUFFER, 0, glZ);
+  if (glKindDirty) { const kf = new Float32Array(n); for (let i = 0; i < n; i++) kf[i] = kind[i]; gl.bindBuffer(gl.ARRAY_BUFFER, glB.k); gl.bufferData(gl.ARRAY_BUFFER, kf, gl.STATIC_DRAW); glKindDirty = false; }
+  gl.viewport(0, 0, glc.width, glc.height);
+  gl.clearColor(0.02, 0.03, 0.05, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST);
+  gl.useProgram(glP);
+  const eye = [cam.dist * Math.cos(cam.pitch) * Math.sin(cam.yaw), cam.dist * Math.sin(cam.pitch), cam.dist * Math.cos(cam.pitch) * Math.cos(cam.yaw)];
+  const M = m4mul(persp(0.8, glc.width / glc.height, 0.05, 20), lookAt(eye, [0, 0, 0], [0, 1, 0]));
+  gl.uniformMatrix4fv(gl.getUniformLocation(glP, "uM"), false, M);
+  gl.uniform1f(gl.getUniformLocation(glP, "uN"), N - 1);
+  gl.uniform1f(gl.getUniformLocation(glP, "uH"), Math.max(0.02, hs / S.gain));
+  const attr = (name, buf, size) => { const l = gl.getAttribLocation(glP, name); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, size, gl.FLOAT, false, 0, 0); };
+  attr("aXY", glB.xy, 2); attr("aZ", glB.z, 1); attr("aK", glB.k, 1);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, glB.idx);
+  gl.drawElements(gl.TRIANGLES, (N - 1) * (N - 1) * 6, gl.UNSIGNED_SHORT, 0);
+}
+
+/* ============================================================ probes */
+const cards = $("cards");
+function probeStats(p) {
+  const L = Math.min(p.n, p.buf.length);
+  if (L < 20) return { A: 0, f: null, I: 0 };
+  const sig = new Float32Array(L), start = p.n - L;
+  for (let k = 0; k < L; k++) sig[k] = p.buf[(start + k) % p.buf.length];
+  let mean = 0; for (const v of sig) mean += v; mean /= L;
+  let A = 0, I = 0; for (const v of sig) { A = Math.max(A, Math.abs(v - mean)); I += (v - mean) ** 2; }
+  // التردد من عبور الصفر الصاعد مع استيفاء خطي
+  const cr = [];
+  for (let k = 1; k < L; k++) { const a = sig[k - 1] - mean, b = sig[k] - mean; if (a < 0 && b >= 0) cr.push(k - 1 + a / (a - b)); }
+  const f = (cr.length >= 3 && A > 1e-3) ? (cr.length - 1) / ((cr[cr.length - 1] - cr[0]) * DT) : null;
+  return { A, f, I: I / L, sig };
+}
+function syncCards() {
+  const want = new Set(S.probes.map(p => p.id));
+  [...cards.children].forEach(c => { if (!want.has(+c.dataset.id)) c.remove(); });
+  S.probes.forEach((p, k) => {
+    let c = cards.querySelector(`[data-id="${p.id}"]`);
+    if (!c) {
+      c = document.createElement("div"); c.className = "pcard"; c.dataset.id = p.id;
+      c.innerHTML = `<div class="h"><span>مجس <b>P${k + 1}</b></span><button class="x" type="button" title="حذف">×</button></div><canvas></canvas><div class="v"><div><span>A</span><b class="mono pa">—</b></div><div><span>f (Hz)</span><b class="mono pf">—</b></div><div><span>⟨u²⟩</span><b class="mono pi">—</b></div></div>`;
+      c.querySelector(".x").onclick = () => { removeItem({ kind: "probe", ref: p }); };
+      cardDrag(c, p);
+      cards.appendChild(c);
+    }
+    c.querySelector(".h b").textContent = "P" + (k + 1);
+  });
+}
+function cardDrag(c, p) {
+  const h = c.querySelector(".h");
+  h.addEventListener("pointerdown", e => {
+    if (S.mode !== "2d" || e.target.closest(".x")) return;
+    e.preventDefault(); h.setPointerCapture(e.pointerId);
+    const r0 = c.getBoundingClientRect(), dx = e.clientX - r0.left, dy = e.clientY - r0.top;
+    const mv = ev => { const sr = $("stage").getBoundingClientRect(); p.cx = clamp(ev.clientX - sr.left - dx, 0, sr.width - c.offsetWidth); p.cy = clamp(ev.clientY - sr.top - dy, 0, sr.height - c.offsetHeight); p.pinned = true; placeCard(c, p); };
+    const up = () => { h.removeEventListener("pointermove", mv); h.removeEventListener("pointerup", up); };
+    h.addEventListener("pointermove", mv); h.addEventListener("pointerup", up);
+  });
+}
+function placeCard(c, p) {
+  if (S.mode !== "2d") { c.style.left = c.style.top = ""; return; }
+  const sr = $("stage").getBoundingClientRect();
+  if (!p.pinned) {
+    const px = (p.x + 0.5) / S.N * sr.width, py = (p.y + 0.5) / S.N * sr.height;
+    p.cx = clamp(px + 16, 4, sr.width - c.offsetWidth - 4); p.cy = clamp(py - c.offsetHeight - 10, 4, sr.height - c.offsetHeight - 4);
+    if (py - c.offsetHeight - 10 < 4) p.cy = clamp(py + 16, 4, sr.height - c.offsetHeight - 4);
+  }
+  c.style.left = p.cx + "px"; c.style.top = p.cy + "px";
+}
+function renderCards() {
+  S.probes.forEach(p => {
+    const c = cards.querySelector(`[data-id="${p.id}"]`); if (!c) return;
+    placeCard(c, p);
+    const st = probeStats(p), cvp = c.querySelector("canvas"), dpr = window.devicePixelRatio || 1;
+    const W = cvp.clientWidth * dpr, H = cvp.clientHeight * dpr;
+    if (cvp.width !== W) { cvp.width = W; cvp.height = H; }
+    const g = cvp.getContext("2d"); g.clearRect(0, 0, W, H);
+    g.strokeStyle = "#212B3E"; g.lineWidth = 1; g.beginPath(); g.moveTo(0, H / 2); g.lineTo(W, H / 2); g.stroke();
+    if (st.sig) {
+      const sig = st.sig, L = sig.length, sc = (H / 2 - 3) / Math.max(st.A * 1.1, 0.02);
+      g.strokeStyle = "#3DDC97"; g.lineWidth = 1.4 * dpr; g.beginPath();
+      for (let k = 0; k < L; k++) { const x = k / (L - 1) * W, y = H / 2 - sig[k] * sc; k ? g.lineTo(x, y) : g.moveTo(x, y); }
+      g.stroke();
+    }
+    c.querySelector(".pa").textContent = st.A ? st.A.toFixed(3) : "—";
+    c.querySelector(".pf").textContent = st.f ? st.f.toFixed(2) : "—";
+    c.querySelector(".pi").textContent = st.I ? st.I.toFixed(4) : "—";
+  });
+}
+
+/* ============================================================ items */
+function newItem(type, x, y) {
+  const T = TYPES[type], o = Object.assign({ id: S.nextId++, type, x, y, rot: 0 }, JSON.parse(JSON.stringify(T.def)));
+  if (type === "rough") o.seed = (Math.random() * 1e9) | 0;
+  if (T.cat === "source") { S.sources.push(o); select({ kind: "source", ref: o }); }
+  else if (T.cat === "probe") { o.buf = new Float32Array(400); o.n = 0; S.probes.push(o); syncCards(); select({ kind: "probe", ref: o }); }
+  else { S.objects.push(o); select({ kind: "obj", ref: o }); }
+  S.dirty = true; return o;
+}
+function removeItem(sel) {
+  if (!sel) return;
+  const list = sel.kind === "source" ? S.sources : sel.kind === "probe" ? S.probes : S.objects;
+  const i = list.indexOf(sel.ref); if (i >= 0) list.splice(i, 1);
+  if (S.sel && S.sel.ref === sel.ref) select(null);
+  if (sel.kind === "probe") syncCards();
+  S.dirty = true;
+}
+function select(sel) { S.sel = sel; renderProps(); }
+function renderProps() {
+  const box = $("selProps"), sel = S.sel;
+  $("bDel").hidden = !sel;
+  if (!sel) { $("selTitle").textContent = "لا يوجد عنصر محدد"; box.innerHTML = `<p class="empty">انقر أي عنصر في الحوض لتعديل خصائصه. المقبض الدائري يدوّر العنصر.</p>`; return; }
+  const o = sel.ref, T = TYPES[o.type];
+  $("selTitle").textContent = T.ar + (sel.kind === "probe" ? " P" + (S.probes.indexOf(o) + 1) : "");
+  let html = T.props.map(([k, l, mn, mx, st, un]) => `<div class="f"><label for="p_${k}">${l}</label><input type="range" id="p_${k}" data-k="${k}" min="${mn}" max="${mx}" step="${st}" value="${o[k]}"><output class="mono">${fmtP(o[k], st)}${un ? " " + un : ""}</output></div>`).join("");
+  if (sel.kind === "source") html += `<p class="note">الطول الموجي في الماء: <b class="mono">${(C_CELLS / o.f).toFixed(1)}</b> خلية${o.type === "double" ? ` · زاوية أول هدب مضيء ≈ <b class="mono">${Math.sin(Math.min(1, (C_CELLS / o.f) / o.sep)) ? (Math.asin(Math.min(1, (C_CELLS / o.f) / o.sep)) * 180 / Math.PI).toFixed(1) : "—"}°</b>` : ""}</p>`;
+  if (o.type === "slit2") { const s = S.sources[0]; if (s) html += `<p class="note">بُعد الأهداب المتوقع: sin θ = λ/d = <b class="mono">${((C_CELLS / s.f) / o.sep).toFixed(3)}</b></p>`; }
+  if (o.type === "lens" || o.type === "prism" || o.type === "slab") html += `<p class="note">سرعة الموجة داخل الوسط = c/n = <b class="mono">${(1 / o.n).toFixed(2)}c</b></p>`;
+  if (sel.kind === "probe") html += `<p class="note">اسحب المجس في الحوض. البطاقة العائمة تعرض الإشارة لحظياً.</p>`;
+  box.innerHTML = html;
+  box.querySelectorAll("input[type=range]").forEach(inp => inp.oninput = () => {
+    const k = inp.dataset.k, def = T.props.find(p => p[0] === k);
+    o[k] = parseFloat(inp.value); inp.nextElementSibling.textContent = fmtP(o[k], def[4]) + (def[5] ? " " + def[5] : "");
+    if (sel.kind === "source") { o._cells = null; if (k === "f") updateLam(); }
+    S.dirty = true;
+  });
+}
+const fmtP = (v, st) => st < 1 ? (+v).toFixed(st < 0.1 ? 2 : 1) : String(Math.round(v));
+function updateLam() { const s = S.sources[0]; $("hLam").textContent = s ? (C_CELLS / s.f).toFixed(1) + " خلية" : "—"; }
+
+/* ============================================================ hit testing & dragging */
+function toGrid(e) { const r = ov.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * S.N - 0.5, (e.clientY - r.top) / r.height * S.N - 0.5]; }
+function inItem(o, x, y, pad) {
+  const [hw, hh] = extent(o), c = Math.cos(rad(o.rot || 0)), s = Math.sin(rad(o.rot || 0)), dx = x - o.x, dy = y - o.y;
+  const lx = dx * c + dy * s, ly = -dx * s + dy * c;
+  return Math.abs(lx) <= hw + pad && Math.abs(ly) <= hh + pad;
+}
+function hit(x, y) {
+  const pad = Math.max(2, 10 * S.N / ov.getBoundingClientRect().width);
+  if (S.sel && S.sel.kind !== "probe" && !(S.sel.kind === "source" && S.sel.ref.type === "point")) {
+    const [hx, hy] = handlePos(S.sel.ref); if (Math.hypot(x - hx, y - hy) < pad * 1.4) return { ...S.sel, rotate: true };
+  }
+  for (let i = S.probes.length - 1; i >= 0; i--) if (Math.hypot(S.probes[i].x - x, S.probes[i].y - y) < pad * 1.5) return { kind: "probe", ref: S.probes[i] };
+  for (let i = S.sources.length - 1; i >= 0; i--) if (inItem(S.sources[i], x, y, pad)) return { kind: "source", ref: S.sources[i] };
+  for (let i = S.objects.length - 1; i >= 0; i--) if (inItem(S.objects[i], x, y, pad * 0.6)) return { kind: "obj", ref: S.objects[i] };
+  return null;
+}
+let drag = null, lastTap = 0;
+const pointers = new Map();
+ov.addEventListener("pointerdown", e => {
+  if (S.mode !== "2d") return;
+  ov.setPointerCapture(e.pointerId);
+  const [x, y] = toGrid(e), h = hit(x, y);
+  const now = performance.now();
+  if (!h && now - lastTap < 320) { addDrop(x, y); lastTap = 0; return; }
+  lastTap = now;
+  if (!h) { select(null); return; }
+  select({ kind: h.kind, ref: h.ref });
+  drag = { h, ox: h.ref.x - x, oy: h.ref.y - y };
+});
+ov.addEventListener("pointermove", e => {
+  if (!drag || S.mode !== "2d") { if (S.mode === "2d") { const [x, y] = toGrid(e); ov.style.cursor = hit(x, y) ? "grab" : "crosshair"; } return; }
+  const [x, y] = toGrid(e), o = drag.h.ref;
+  if (drag.h.rotate) { o.rot = ((Math.atan2(x - o.x, -(y - o.y)) * 180 / Math.PI) + 360) % 360; renderProps(); }
+  else { o.x = clamp(x + drag.ox, 0, S.N - 1); o.y = clamp(y + drag.oy, 0, S.N - 1); if (drag.h.kind === "probe") o.pinned = false; }
+  if (drag.h.kind === "source") o._cells = null;
+  if (drag.h.kind !== "probe") S.dirty = true;
+});
+ov.addEventListener("pointerup", () => { drag = null; });
+ov.addEventListener("pointercancel", () => { drag = null; });
+
+// كاميرا 3D
+glc.addEventListener("pointerdown", e => { glc.setPointerCapture(e.pointerId); pointers.set(e.pointerId, [e.clientX, e.clientY]); });
+glc.addEventListener("pointermove", e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  if (pointers.size === 1) { cam.yaw -= (e.clientX - prev[0]) * 0.008; cam.pitch = clamp(cam.pitch + (e.clientY - prev[1]) * 0.006, 0.08, 1.52); }
+  else if (pointers.size === 2) {
+    const other = [...pointers.entries()].find(([k]) => k !== e.pointerId)[1];
+    const d0 = Math.hypot(prev[0] - other[0], prev[1] - other[1]), d1 = Math.hypot(e.clientX - other[0], e.clientY - other[1]);
+    if (d0 > 0) cam.dist = clamp(cam.dist * d0 / d1, 1.2, 6);
+  }
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+});
+const endP = e => pointers.delete(e.pointerId);
+glc.addEventListener("pointerup", endP); glc.addEventListener("pointercancel", endP);
+glc.addEventListener("wheel", e => { e.preventDefault(); cam.dist = clamp(cam.dist * Math.exp(e.deltaY * 0.001), 1.2, 6); }, { passive: false });
+
+/* ============================================================ palette (drag & drop) */
+const pal = $("pal"), ghost = $("ghost");
+PALETTE.forEach(type => {
+  const b = document.createElement("button"); b.type = "button"; b.dataset.type = type;
+  b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" style="color:${TYPES[type].cat === "source" ? "#62D2FF" : type === "probe" ? "#3DDC97" : "#DCE4F0"}">${ICON[type]}</svg>${TYPES[type].ar}`;
+  b.addEventListener("pointerdown", e => {
+    e.preventDefault(); b.setPointerCapture(e.pointerId);
+    const sx = e.clientX, sy = e.clientY; let moved = false;
+    const mv = ev => {
+      if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) > 6) { moved = true; ghost.hidden = false; ghost.textContent = TYPES[type].ar; }
+      if (moved) { ghost.style.left = ev.clientX + "px"; ghost.style.top = ev.clientY + "px"; }
+    };
+    const up = ev => {
+      b.removeEventListener("pointermove", mv); b.removeEventListener("pointerup", up); ghost.hidden = true;
+      if (S.mode !== "2d") setMode("2d");
+      const r = ov.getBoundingClientRect();
+      if (moved && ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) newItem(type, ...toGrid(ev));
+      else if (!moved) newItem(type, S.N / 2 + (Math.random() - 0.5) * 20, S.N / 2 + (Math.random() - 0.5) * 20);
+    };
+    b.addEventListener("pointermove", mv); b.addEventListener("pointerup", up);
+  });
+  pal.appendChild(b);
+});
+
+/* ============================================================ presets */
+const PRESETS = {
+  "انعكاس: مرآة مقعرة": N => { add("line", N * 0.14, N / 2, { rot: 90, len: N * 0.55, f: 1.6 }); add("mirror", N * 0.8, N / 2, { rot: 270, len: N * 0.6, foc: N * 0.2 }); add("probe", N * 0.8 - N * 0.2 + ((N * 0.3) ** 2) / (8 * N * 0.2), N / 2); },
+  "حيود: شق مفرد": N => { add("line", N * 0.12, N / 2, { rot: 90, len: N * 0.7, f: 1.5 }); add("slit1", N * 0.35, N / 2, { rot: 90, gap: 14 }); add("probe", N * 0.7, N / 2); },
+  "تداخل: شقان (يونغ)": N => { add("line", N * 0.12, N / 2, { rot: 90, len: N * 0.7, f: 1.8 }); add("slit2", N * 0.32, N / 2, { rot: 90, gap: 6, sep: 34 }); add("probe", N * 0.78, N / 2); setView("int"); },
+  "تداخل: مصدران": N => { add("double", N * 0.3, N / 2, { rot: 90, sep: 36, f: 1.6 }); add("probe", N * 0.75, N / 2); },
+  "انكسار: عدسة محدبة": N => { add("line", N * 0.12, N / 2, { rot: 90, len: N * 0.7, f: 2 }); add("lens", N * 0.38, N / 2, { a: 10, b: N * 0.3, n: 1.7 }); add("probe", N * 0.68, N / 2); },
+  "انكسار: منشور": N => { add("line", N * 0.12, N / 2, { rot: 90, len: N * 0.45, f: 2 }); add("prism", N * 0.5, N / 2, { size: N * 0.42, n: 1.6, rot: 90 }); },
+  "انكسار: لوح مائل": N => { add("line", N * 0.12, N / 2, { rot: 90, len: N * 0.55, f: 1.8 }); add("slab", N * 0.55, N / 2, { w: N * 0.16, h: N * 0.8, n: 1.6, rot: 25 }); },
+  "تشتت: سطح خشن": N => { add("line", N * 0.12, N / 2, { rot: 90, len: N * 0.5, f: 1.8 }); add("rough", N * 0.55, N / 2, { w: 26, h: N * 0.5, dens: 0.2 }); add("probe", N * 0.3, N * 0.2); },
+  "امتصاص": N => { add("point", N * 0.3, N / 2, { f: 1.4 }); add("absorber", N * 0.65, N / 2, { w: 32, h: N * 0.6, k: 0.18 }); add("wall", N * 0.65, N * 0.12, { w: 4, h: N * 0.2, rot: 0 }); add("probe", N * 0.8, N / 2); },
+  "حوض فارغ": () => {},
+};
+function add(type, x, y, props) { const o = newItem(type, x, y); Object.assign(o, props || {}); o._cells = null; return o; }
+function loadPreset(name) {
+  S.objects = []; S.sources = []; S.probes = []; select(null); setView("amp");
+  PRESETS[name](S.N); syncCards(); select(null); S.dirty = true; clearWaves(); updateLam();
+  $("presets").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.name === name)));
+}
+Object.keys(PRESETS).forEach(name => { const b = document.createElement("button"); b.type = "button"; b.className = "btn sm"; b.dataset.name = name; b.textContent = name; b.onclick = () => loadPreset(name); $("presets").appendChild(b); });
+
+/* ============================================================ controls */
+function setMode(m) {
+  S.mode = m; $("stage").classList.toggle("mode3d", m === "3d");
+  $("v2").setAttribute("aria-pressed", String(m === "2d")); $("v3").setAttribute("aria-pressed", String(m === "3d"));
+  if (m === "3d" && !glInit()) { setMode("2d"); toastHint("WebGL غير متاح في هذا المتصفح"); return; }
+  $("hHint").textContent = m === "3d" ? "اسحب للتدوير · العجلة للتقريب" : "اسحب العناصر · انقر نقرتين لقطرة";
+  resize();
+}
+function setView(v) { S.view = v; $("sView").value = v; S.inten.fill(0); legend(); }
+function toastHint(t) { $("hHint").textContent = t; }
+$("v2").onclick = () => setMode("2d"); $("v3").onclick = () => setMode("3d");
+$("bPlay").onclick = () => { S.running = !S.running; $("bPlay").textContent = S.running ? "إيقاف مؤقت" : "تشغيل"; $("bPlay").classList.toggle("pri", S.running); };
+$("bStep").onclick = () => { for (let k = 0; k < S.speed; k++) step(); };
+$("bClear").onclick = clearWaves;
+$("bDel").onclick = () => removeItem(S.sel);
+$("sSpeed").oninput = e => { S.speed = +e.target.value; $("oSpeed").textContent = S.speed; };
+$("sDamp").oninput = e => { S.gDamp = +e.target.value / 1000; $("oDamp").textContent = (S.gDamp * 1000).toFixed(0); S.dirty = true; };
+$("sEdge").onchange = e => { S.edge = e.target.value; S.dirty = true; };
+$("sView").onchange = e => setView(e.target.value);
+$("sGain").oninput = e => { S.gain = +e.target.value / 10; $("oGain").textContent = S.gain.toFixed(1); };
+$("sH").oninput = e => { S.hScale = +e.target.value; $("oH").textContent = S.hScale; };
+$("sGrid").onchange = e => {
+  const N0 = S.N, N1 = +e.target.value, f = N1 / N0;
+  [...S.objects, ...S.sources, ...S.probes].forEach(o => { o.x *= f; o.y *= f; ["w", "h", "len", "gap", "sep", "a", "b", "size", "foc", "th"].forEach(k => { if (typeof o[k] === "number" && !(k === "h" && o.type === "wall" && false)) o[k] *= (k === "th" || k === "gap" ? 1 : f); }); o._cells = null; o.pinned = false; });
+  alloc(N1); glN = 0; clearWaves(); renderProps();
+};
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input,select,textarea")) return;
+  if ((e.key === "Delete" || e.key === "Backspace") && S.sel) { removeItem(S.sel); e.preventDefault(); }
+  if (e.key === " ") { $("bPlay").click(); e.preventDefault(); }
+});
+function legend() {
+  $("legend").innerHTML = (S.view === "amp"
+    ? `<span><i style="background:#ffbe5a"></i>قمة الموجة</span><span><i style="background:#62d2ff"></i>قاع الموجة</span>`
+    : `<span><i style="background:linear-gradient(90deg,#091c2e,#ff6a2e,#ffe48a)"></i>شدة متوسطة زمنياً (أهداب التداخل)</span>`)
+    + `<span><i style="background:#969eaa"></i>جدار عاكس</span><span><i style="background:#1a2c46"></i>وسط بطيء (n&gt;1)</span><span><i style="background:#281e16"></i>ماص</span>`;
+}
+
+/* ============================================================ sizing & loop */
+function resize() {
+  const st = $("stage"), r = st.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+  const W = Math.round(r.width * dpr), H = Math.round(r.height * dpr);
+  for (const c of [cv, ov, glc]) if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  S.probes.forEach(p => { if (!p.pinned) p.cx = undefined; });
+}
+window.addEventListener("resize", resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe($("stage"));
+
+let fpsT = performance.now(), fpsN = 0;
+function frame() {
+  if (S.dirty) rebuild();
+  if (S.running) for (let k = 0; k < S.speed; k++) step();
+  if (S.mode === "3d") render3d(); else render2d();
+  renderCards();
+  fpsN++; const now = performance.now();
+  if (now - fpsT > 500) { $("hFps").textContent = Math.round(fpsN * 1000 / (now - fpsT)); fpsT = now; fpsN = 0; }
+  requestAnimationFrame(frame);
+}
+
+/* ============================================================ boot */
+alloc(180); legend(); resize();
+loadPreset("تداخل: شقان (يونغ)");
+window.RippleTank = { S, step, probeStats, loadPreset, setMode, setView, PRESETS, C_CELLS, DT };   // للاختبار
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
