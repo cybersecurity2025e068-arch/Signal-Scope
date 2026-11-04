@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>منظومة راصد الإشارة · جامعة المعقل الدولية</title>
+<meta name="description" content="منظومة راصد الإشارة لقسم هندسة الأمن السيبراني، جامعة المعقل الدولية: لوحة الراصد، وراصد الإشارة، وحوض الأمواج.">
+<meta name="theme-color" content="#FEF8E7">
+<script src="../app/brand/amu.js"></script>
+<link rel="icon" href="../app/brand/icon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="../app/brand/favicon-32.png">
+<link rel="apple-touch-icon" href="../app/brand/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Readex+Pro:wght@400;600;700;800&family=Orbitron:wght@600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../app/brand/amu.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; color: var(--fg); overflow: hidden; }
+  button, a { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid #F59E0B; outline-offset: 2px; }
+
+  /* ===== الشريط العلوي (حالة الخادم · توقيت البصرة · السمة) ===== */
+  .top { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+    padding: max(8px, env(safe-area-inset-top)) 16px 8px; border-bottom: 1px solid rgba(217,119,6,.3);
+    background: color-mix(in srgb, var(--amu-glass) 90%, transparent); }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+    background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.4); color: #92400E; text-decoration: none; white-space: nowrap; }
+  :root[data-theme="dark"] .chip { color: #FCD34D; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #94A3B8; flex: none; }
+  [data-state="ok"] .dot { background: #10B981; box-shadow: 0 0 0 3px rgba(16,185,129,.22); }
+  [data-state="down"] .dot { background: #F43F5E; box-shadow: 0 0 0 3px rgba(244,63,94,.22); }
+  [data-state="checking"] .dot { animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .hud { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 16px; border: 1px solid rgba(245,158,11,.5);
+    background: var(--hud-bg, rgba(254,243,199,.95)); font-size: 12px; font-weight: 700; }
+  :root[data-theme="dark"] .hud { background: rgba(6,10,23,.9); }
+  .hud .lbl { color: #92400E; }
+  :root[data-theme="dark"] .hud .lbl { color: #FBBF24; }
+  .digits { display: inline-flex; align-items: center; gap: 3px; direction: ltr; font-family: 'Orbitron', 'JetBrains Mono', monospace; }
+  .digits b { padding: 1px 6px; border-radius: 7px; border: 1px solid rgba(245,158,11,.3); background: #fff; color: #92400E; font-size: 13px; }
+  :root[data-theme="dark"] .digits b { background: #030712; color: #FDE047; }
+  .digits i { font-style: normal; color: #D97706; animation: pulse 1s steps(2) infinite; }
+  .gmt { font: 800 10px 'JetBrains Mono', monospace; padding: 1px 5px; border-radius: 4px; background: rgba(217,119,6,.15); color: #92400E; }
+  :root[data-theme="dark"] .gmt { color: #FCD34D; }
+  .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .gbtn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 12px; border: 0; cursor: pointer; text-decoration: none; font-size: 12px; font-weight: 800;
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%); color: #fff !important; box-shadow: 0 4px 14px rgba(217,119,6,.35), inset 0 1px 1px rgba(255,255,255,.45); transition: transform .2s; }
+  .gbtn:hover { transform: translateY(-2px); filter: brightness(1.07); }
+  .gbtn.soft { background: rgba(245,158,11,.2); color: #78350F !important; border: 1px solid rgba(245,158,11,.4); box-shadow: none; }
+  :root[data-theme="dark"] .gbtn.soft { color: #FDE68A !important; }
+  .gbtn svg { width: 16px; height: 16px; }
+
+  /* ===== شريط الهوية (كحلي مع شعار الجامعة) ===== */
+  .hero { flex: none; position: relative; overflow: hidden; color: #fff; border-bottom: 1px solid rgba(217,119,6,.3);
+    background: linear-gradient(to left, #0C1224, #101830 50%, #0A0E1C); box-shadow: 0 10px 30px -12px rgba(0,0,0,.5); }
+  .hero::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% 0%, rgba(245,158,11,.25), transparent 70%); pointer-events: none; }
+  .hero-in { position: relative; max-width: 1400px; margin: 0 auto; padding: 14px 16px 0; display: flex; align-items: center; gap: 16px; }
+  .crest { position: relative; flex: none; width: 82px; height: 82px; }
+  .crest::before { content: ''; position: absolute; inset: -5px; border-radius: 50%; background: linear-gradient(90deg, #F59E0B, #FDE047, #D97706); filter: blur(8px); opacity: .7; }
+  .crest .ring { position: relative; width: 100%; height: 100%; border-radius: 50%; padding: 4px; background: #060A17; border: 2px solid #FBBF24; overflow: hidden; }
+  .crest img { width: 100%; height: 100%; display: block; }
+  .scan { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, #F59E0B, #0284C7, transparent); animation: scan 4s linear infinite; }
+  @keyframes scan { 0% { top: 0; opacity: 0; } 50% { opacity: .85; } 100% { top: 100%; opacity: 0; } }
+  .idt { min-width: 0; flex: 1; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; background: rgba(245,158,11,.2); border: 1px solid rgba(251,191,36,.5); color: #FCD34D; font-size: 11.5px; font-weight: 700; }
+  .badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #FBBF24; animation: pulse 1.6s infinite; }
+  .idt h1 { margin: 4px 0 0; font: 800 clamp(20px, 3.2vw, 30px)/1.2 'Readex Pro', 'Cairo', sans-serif; }
+  .idt h1 span { display: block; font-size: .72em; background: linear-gradient(to left, #FBBF24, #FDE68A, #FACC15); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* ===== التبويبات ===== */
+  .tabs { position: relative; max-width: 1400px; margin: 12px auto 0; padding: 0 16px; display: flex; gap: 6px; align-items: flex-end; overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1.5px solid rgba(245,158,11,.35); border-bottom: 0; border-radius: 14px 14px 0 0; cursor: pointer;
+    background: rgba(255,255,255,.06); color: #CBD5E1; font-weight: 800; font-size: 14px; white-space: nowrap; transition: background .2s, color .2s; }
+  .tab:hover { color: #FDE68A; background: rgba(245,158,11,.14); }
+  .tab[aria-selected="true"] { background: var(--amu-glass); color: var(--fg); border-color: #D97706; box-shadow: 0 -6px 18px -8px rgba(245,158,11,.6); }
+  :root[data-theme="light"] .tab[aria-selected="true"] { background: #FFFDF7; color: #0A0F1D; }
+  .tab svg { width: 20px; height: 20px; flex: none; }
+  .tab[aria-selected="true"] svg { color: #D97706; }
+  .tab small { font-size: 11px; font-weight: 600; opacity: .7; }
+  .spacer { flex: 1; }
+  .gbtn.pop { align-self: center; margin-bottom: 6px; color: #FDE68A !important; border-color: rgba(251,191,36,.5) !important; background: rgba(245,158,11,.14) !important; }
+
+  /* ===== محتوى التبويب ===== */
+  .frames { position: relative; flex: 1; min-height: 0; }
+  .frames iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+  .frames iframe[hidden] { display: none; }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-weight: 700; pointer-events: none; }
+
+  @media (max-width: 720px) {
+    .top { padding-inline: 10px; flex-wrap: nowrap; gap: 6px; }
+    .hud .lbl, .hud .date, .acts .txt, #srvTxt { display: none; }
+    .chip { padding: 9px; }
+    .hud { padding: 4px 8px; gap: 5px; }
+    .digits b { font-size: 12px; padding: 1px 4px; }
+    .gbtn { padding: 7px 9px; }
+    .hero-in { padding: 10px 12px 0; gap: 12px; }
+    .crest { width: 54px; height: 54px; }
+    .idt h1 { font-size: 18px; }
+    .badge { font-size: 10.5px; }
+    .tabs { margin-top: 8px; padding: 0 8px; gap: 4px; }
+    .tab { padding: 8px 10px; font-size: 13px; flex: 1; justify-content: center; }
+    .tab small, .pop { display: none; }
+  }
+  @media (max-height: 560px) and (orientation: landscape) { .hero-in { display: none; } .tabs { margin-top: 6px; } }
+  @media (prefers-reduced-motion: reduce) { .scan, .badge::before, .digits i, .dot { animation: none !important; } }
+</style>
+</head>
+<body>
+  <header class="top">
+    <a class="chip" id="srv" data-state="checking" href="../api/index.php?r=/v1/ping" target="_blank" rel="noopener"><span class="dot"></span><span id="srvTxt">جارٍ فحص الخادم…</span></a>
+    <div class="hud" aria-label="توقيت البصرة">
+      <span class="lbl">توقيت البصرة</span>
+      <span class="digits"><b id="hh">--</b><i>:</i><b id="mm">--</b><i>:</i><b id="ss">--</b></span>
+      <span class="date" id="dt"></span><span class="gmt">GMT+3</span>
+    </div>
+    <div class="acts">
+      <a class="gbtn" href="/amu/" title="بوابة قسم هندسة الأمن السيبراني">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10l9-6 9 6M5 10v9h14v-9M9 19v-5h6v5"/></svg><span class="txt">بوابة القسم</span></a>
+      <button class="gbtn soft" id="themeBtn" type="button" aria-label="تبديل السمة">
+        <svg id="themeIco" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"></svg><span class="txt" id="themeTxt">الوضع الليلي</span></button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-in">
+      <div class="crest"><div class="ring"><div class="scan"></div><img src="../app/brand/crest.svg" alt="شعار جامعة المعقل الدولية"></div></div>
+      <div class="idt">
+        <span class="badge">كلية الهندسة · قسم هندسة الأمن السيبراني</span>
+        <h1>جامعة المعقل الدولية<span>منظومة راصد الإشارة</span></h1>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" aria-label="أقسام المنظومة">
+      <button class="tab" role="tab" id="t-dash" data-tab="dash" aria-controls="f-dash" aria-selected="false">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h7v6H4zM13 5h7v4h-7zM13 11h7v8h-7zM4 13h7v6H4z"/></svg>
+        <span>لوحة الراصد <small>الخرائط والتقارير</small></span></button>
+      <button class="tab" role="tab" id="t-app" data-tab="app" aria-controls="f-app" aria-selected="false">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 13v8M8.2 7.2a5.4 5.4 0 0 0 0 7.6M15.8 7.2a5.4 5.4 0 0 1 0 7.6M5.4 4.4a9.4 9.4 0 0 0 0 13.2M18.6 4.4a9.4 9.4 0 0 1 0 13.2"/><circle cx="12" cy="11" r="1.7"/></svg>
+        <span>راصد الإشارة <small>القياس والتشخيص</small></span></button>
+      <button class="tab" role="tab" id="t-ripple" data-tab="ripple" aria-controls="f-ripple" aria-selected="false">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M2 12c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0M2 17c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0M2 7c2.5-3 5-3 7.5 0s5 3 7.5 0 3.5-3 5 0"/></svg>
+        <span>حوض الأمواج <small>محاكاة FDTD</small></span></button>
+      <span class="spacer"></span>
+      <a class="gbtn soft pop" id="popOut" href="#" target="_blank" rel="noopener" title="فتح التبويب الحالي في نافذة مستقلة">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>نافذة مستقلة</a>
+    </div>
+  </section>
+
+  <main class="frames" id="frames"><div class="loading" id="loading">جارٍ التحميل…</div></main>
+
+<script>
+(function () {
+  "use strict";
+  var TABS = {
+    dash:   { src: "../dashboard/",         title: "لوحة الراصد" },
+    app:    { src: "../app/index.html",     title: "راصد الإشارة" },
+    ripple: { src: "../app/ripple.html",    title: "حوض الأمواج" }
+  };
+  var $ = function (id) { return document.getElementById(id); };
+  var frames = {};
+
+  // التبويبات: كل تبويب في إطار مستقل يُنشأ عند أول فتح ويبقى محفوظاً (لا يفقد حالته عند التنقل)
+  function show(name) {
+    if (!TABS[name]) name = "dash";
+    Object.keys(TABS).forEach(function (k) {
+      var on = k === name;
+      $("t-" + k).setAttribute("aria-selected", String(on));
+      $("t-" + k).tabIndex = on ? 0 : -1;
+      if (frames[k]) frames[k].hidden = !on;
+    });
+    if (!frames[name]) {
+      var f = document.createElement("iframe");
+      f.id = "f-" + name; f.title = TABS[name].title; f.src = TABS[name].src;
+      f.setAttribute("role", "tabpanel"); f.setAttribute("aria-labelledby", "t-" + name);
+      f.setAttribute("allow", "fullscreen; clipboard-write; geolocation");
+      $("loading").hidden = false;
+      f.addEventListener("load", function () { if (!frames[name].hidden) $("loading").hidden = true; });
+      $("frames").appendChild(f); frames[name] = f;
+    } else { $("loading").hidden = true; }
+    $("popOut").href = TABS[name].src;
+    document.title = TABS[name].title + " · منظومة راصد الإشارة";
+    if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
+    try { localStorage.setItem("amu-raasid-tab", name); } catch (e) {}
+  }
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (b) {
+    b.addEventListener("click", function () { show(b.dataset.tab); });
+    b.addEventListener("keydown", function (e) {   // الأسهم بين التبويبات (اتجاه عربي)
+      var keys = Object.keys(TABS), i = keys.indexOf(b.dataset.tab);
+      if (e.key === "ArrowLeft") i = (i + 1) % keys.length; else if (e.key === "ArrowRight") i = (i + keys.length - 1) % keys.length; else return;
+      e.preventDefault(); show(keys[i]); $("t-" + keys[i]).focus();
+    });
+  });
+  window.addEventListener("hashchange", function () { show(location.hash.slice(1)); });
+  var start = location.hash.slice(1);
+  if (!TABS[start]) { try { start = localStorage.getItem("amu-raasid-tab"); } catch (e) {} }
+  show(start);
+
+  // السمة المشتركة (نهاري ذهبي / ليلي كحلي)
+  var MOON = '<path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+  var SUN = '<circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+  function themeUi() { var d = AMU.get() === "dark"; $("themeIco").innerHTML = d ? SUN : MOON; $("themeTxt").textContent = d ? "الوضع النهاري" : "الوضع الليلي"; }
+  $("themeBtn").addEventListener("click", function () { AMU.toggle(); themeUi(); });
+  window.addEventListener("amu-theme", themeUi); themeUi();
+
+  // توقيت البصرة (GMT+3) مثل البوابة
+  var fmtDate = new Intl.DateTimeFormat("ar-IQ", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Baghdad" });
+  var fmtTime = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false, timeZone: "Asia/Baghdad" });
+  function tick() {
+    var p = fmtTime.formatToParts(new Date()), g = {};
+    p.forEach(function (x) { g[x.type] = x.value; });
+    $("hh").textContent = g.hour; $("mm").textContent = g.minute; $("ss").textContent = g.second;
+    $("dt").textContent = fmtDate.format(new Date());
+  }
+  tick(); setInterval(tick, 1000);
+
+  // حالة الخادم الحقيقية
+  function ping() {
+    var el = $("srv"); el.dataset.state = "checking";
+    fetch("../api/index.php?r=/v1/ping", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
+      el.dataset.state = j && j.ok ? "ok" : "down"; $("srvTxt").textContent = j && j.ok ? "الخادم يعمل · v" + j.version : "الخادم لا يستجيب"; el.title = $("srvTxt").textContent;
+    }).catch(function () { el.dataset.state = "down"; $("srvTxt").textContent = "الخادم لا يستجيب"; });
+  }
+  ping(); setInterval(ping, 60000);
+})();
+</script>
+</body>
+</html>

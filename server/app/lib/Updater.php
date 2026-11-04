@@ -53,6 +53,7 @@ final class Updater
         $n += self::copyDir($src . '/server/public/api', $docRoot . '/api');
         $n += self::copyDir($src . '/server/public/dashboard', $docRoot . '/dashboard');
         $n += self::copyDir($src . '/web', $docRoot . '/app');
+        $n += self::copyDir($src . '/server/public/raasid', $docRoot . '/raasid');   // البوابة الموحدة بثلاثة تبويبات
         foreach (['lib', 'cron', 'bin', 'data'] as $d) $n += self::copyDir($src . '/server/app/' . $d, SS_APP_DIR . '/' . $d, ['update']);
         foreach (['bootstrap.php', 'schema.sql', 'config.example.php', '.htaccess', 'rotate.id'] as $f) {
             if (is_file($src . '/server/app/' . $f)) { self::copyFile($src . '/server/app/' . $f, SS_APP_DIR . '/' . $f); $n++; }

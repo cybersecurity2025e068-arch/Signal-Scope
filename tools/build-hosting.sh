@@ -11,6 +11,7 @@ OUT="$ROOT/dist/hosting"
 rm -rf "$OUT" && mkdir -p "$OUT/public_html" "$OUT/signalscope"
 cp -r "$ROOT/server/public/api" "$ROOT/server/public/dashboard" "$OUT/public_html/"
 cp -r "$ROOT/web" "$OUT/public_html/app"
+cp -r "$ROOT/server/public/raasid" "$OUT/public_html/raasid"
 cp -r "$ROOT/server/app/." "$OUT/signalscope/"
 rm -f "$OUT/signalscope/config.php"   # لا يُرفع أبداً: يُنشأ مرة واحدة على الخادم
 if [[ "${1:-}" == "--zip" ]]; then

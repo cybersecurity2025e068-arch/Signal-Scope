@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" fill="none">
+                <defs>
+                  <linearGradient id="crestGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#FFFBEB"/>
+                    <stop offset="30%" stop-color="#FBBF24"/>
+                    <stop offset="65%" stop-color="#D97706"/>
+                    <stop offset="100%" stop-color="#854D0E"/>
+                  </linearGradient>
+                  <linearGradient id="crestNavyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#141E38"/>
+                    <stop offset="100%" stop-color="#060A17"/>
+                  </linearGradient>
+                  <path id="arcArabicCrest" d="M 85 250 A 165 165 0 0 1 415 250" fill="none" />
+                  <path id="arcEnglishCrest" d="M 415 250 A 165 165 0 0 1 85 250" fill="none" />
+                </defs>
+                <circle cx="250" cy="250" r="236" stroke="url(#crestGoldGrad)" stroke-width="3" stroke-dasharray="6 4" opacity="0.85"/>
+                <circle cx="250" cy="250" r="226" stroke="url(#crestGoldGrad)" stroke-width="4.5"/>
+                <circle cx="250" cy="250" r="192" fill="url(#crestNavyGrad)" stroke="url(#crestGoldGrad)" stroke-width="3"/>
+                <circle cx="250" cy="250" r="148" fill="url(#crestNavyGrad)" stroke="url(#crestGoldGrad)" stroke-width="3.5"/>
+                <circle cx="250" cy="250" r="142" stroke="url(#crestGoldGrad)" stroke-width="1.2" stroke-dasharray="4 3"/>
+                <text fill="url(#crestGoldGrad)" font-family="'Cairo', sans-serif" font-size="28" font-weight="900" letter-spacing="4">
+                  <textPath href="#arcArabicCrest" startOffset="50%" text-anchor="middle">
+                    جامعة المعقل الدولية
+                  </textPath>
+                </text>
+                <text fill="url(#crestGoldGrad)" font-family="'Cairo', sans-serif" font-size="16.5" font-weight="800" letter-spacing="2.4">
+                  <textPath href="#arcEnglishCrest" startOffset="50%" text-anchor="middle">
+                    AL-MAAQAL INTERNATIONAL UNIVERSITY
+                  </textPath>
+                </text>
+                <polygon points="76,250 80,242 89,242 82,247 85,255 78,250 71,255 74,247 67,242 76,242" fill="url(#crestGoldGrad)"/>
+                <polygon points="424,250 428,242 437,242 430,247 433,255 426,250 419,255 422,247 415,242 424,242" fill="url(#crestGoldGrad)"/>
+                <g opacity="0.9">
+                  <circle cx="250" cy="210" r="42" fill="#FBBF24"/>
+                  <line x1="250" y1="152" x2="250" y2="132" stroke="url(#crestGoldGrad)" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="216" y1="166" x2="202" y2="150" stroke="url(#crestGoldGrad)" stroke-width="3" stroke-linecap="round"/>
+                  <line x1="284" y1="166" x2="298" y2="150" stroke="url(#crestGoldGrad)" stroke-width="3" stroke-linecap="round"/>
+                </g>
+                <g filter="drop-shadow(0 4px 6px rgba(0,0,0,0.6))">
+                  <polygon points="250,162 178,206 322,206" fill="url(#crestNavyGrad)" stroke="url(#crestGoldGrad)" stroke-width="4" stroke-linejoin="round"/>
+                  <polygon points="250,172 192,202 308,202" fill="url(#crestGoldGrad)" opacity="0.35"/>
+                  <circle cx="250" cy="192" r="6" fill="url(#crestGoldGrad)"/>
+                  <rect x="174" y="206" width="152" height="10" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="182" y="218" width="12" height="66" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="210" y="218" width="12" height="66" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="244" y="218" width="12" height="66" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="278" y="218" width="12" height="66" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="306" y="218" width="12" height="66" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="172" y="284" width="156" height="8" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="166" y="292" width="168" height="8" rx="2" fill="url(#crestGoldGrad)"/>
+                  <rect x="160" y="300" width="180" height="9" rx="2" fill="url(#crestGoldGrad)"/>
+                </g>
+                <g fill="url(#crestGoldGrad)">
+                  <path d="M 170 330 C 150 310 145 270 148 245 C 154 265 168 285 180 300 Z"/>
+                  <circle cx="146" cy="270" r="4.5"/>
+                  <circle cx="156" cy="292" r="5"/>
+                  <circle cx="168" cy="312" r="5.5"/>
+                  <path d="M 330 330 C 350 310 355 270 352 245 C 346 265 332 285 320 300 Z"/>
+                  <circle cx="354" cy="270" r="4.5"/>
+                  <circle cx="344" cy="292" r="5"/>
+                  <circle cx="332" cy="312" r="5.5"/>
+                </g>
+                <path d="M 185 330 L 250 338 L 315 330 L 325 352 L 250 364 L 175 352 Z" fill="url(#crestNavyGrad)" stroke="url(#crestGoldGrad)" stroke-width="3" stroke-linejoin="round"/>
+                <text x="250" y="354" font-family="'Cairo', sans-serif" font-size="18" font-weight="900" fill="url(#crestGoldGrad)" text-anchor="middle" letter-spacing="3">
+                  2020 · ١٤٤١
+                </text>
+                <path d="M 198 376 Q 224 386 250 376 T 302 376" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
+                <path d="M 212 384 Q 231 392 250 384 T 288 384" fill="none" stroke="url(#crestGoldGrad)" stroke-width="2" stroke-linecap="round"/>
+              </svg>

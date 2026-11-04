@@ -425,11 +425,11 @@
         <label class="f">الجديدة (10 أحرف على الأقل)<input class="inp" id="pNew" type="password" dir="ltr" autocomplete="new-password" minlength="10" required></label>
         <button class="btn primary" type="submit">حفظ</button></form></div>
       <div class="card"><h3>العرض والجلسة</h3><div class="grid">
-        <label class="f">السمة<select class="sel" id="sTheme"><option value="">تلقائي</option><option value="light">فاتح</option><option value="dark">داكن</option></select></label>
+        <label class="f">السمة<select class="sel" id="sTheme"><option value="light">نهاري (ذهبي)</option><option value="dark">ليلي (كحلي)</option></select></label>
         <button class="btn" id="bOut" type="button">تسجيل الخروج</button></div></div>
       <div class="card span2"><h3>المهام المجدولة (cPanel ← Cron Jobs)</h3><p class="note">تقدير مواقع الأبراج يعمل كل 15 دقيقة، والتنظيف مرة يومياً. الأوامر في ملف README ضمن المستودع.</p></div></div>`;
-    $("sTheme").value = localGet("theme") || "";
-    $("sTheme").onchange = e => { localSet("theme", e.target.value); applyTheme(); };
+    $("sTheme").value = window.AMU ? AMU.get() : (localGet("theme") || "light");
+    $("sTheme").onchange = e => { if (window.AMU) AMU.set(e.target.value); else { localSet("theme", e.target.value); applyTheme(); } };
     $("pwForm").onsubmit = async e => { e.preventDefault(); try { await api("v1/admin/password", { method: "POST", body: { current: $("pCur").value, new: $("pNew").value } }); toast("تم تغيير كلمة المرور"); e.target.reset(); } catch (err) { toast(err.message); } };
     $("bOut").onclick = async () => { await api("v1/admin/logout", { method: "POST" }); showAuth(false); };
   }
@@ -437,8 +437,13 @@
   // ------------------------------------------------------------------ boot
   function localGet(k) { try { return localStorage.getItem("ss_" + k); } catch (_) { return null; } }
   function localSet(k, v) { try { v ? localStorage.setItem("ss_" + k, v) : localStorage.removeItem("ss_" + k); } catch (_) { } }
-  function applyTheme() { const t = localGet("theme"); t ? document.documentElement.setAttribute("data-theme", t) : document.documentElement.removeAttribute("data-theme"); }
+  function applyTheme() {
+    if (window.AMU) return;   // السمة تُدار من brand/amu.js (مشتركة مع البوابة والواجهتين الأخريين)
+    const t = localGet("theme"); t ? document.documentElement.setAttribute("data-theme", t) : document.documentElement.removeAttribute("data-theme");
+  }
   applyTheme();
+  // ألوان الخرائط والرسوم تُقرأ عند الرسم: نعيد رسم الصفحة الحالية عند تغيّر السمة
+  window.addEventListener("amu-theme", () => { if (!$("shell").hidden) route(); });
   (async () => {
     try {
       const res = await fetch(apiUrl("v1/admin/status"), { credentials: "same-origin" });

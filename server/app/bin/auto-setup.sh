@@ -39,7 +39,7 @@ DOCROOT=""
 [ -x "$UAPI" ] && [ -n "$DOMAIN" ] && DOCROOT="$("$UAPI" --output=json DomainInfo single_domain_data domain="$DOMAIN" 2>/dev/null | jget result data documentroot)"
 log "النطاق: ${DOMAIN:-?} · مجلد الموقع: ${DOCROOT:-?}"
 if [ -n "$DOCROOT" ] && [ -d "$DOCROOT" ] && [ "$(cd "$DOCROOT" && pwd -P)" != "$(cd "$PUB" && pwd -P)" ]; then
-  for d in api dashboard app; do mkdir -p "$DOCROOT/$d" && cp -R "$PUB/$d/." "$DOCROOT/$d/"; done
+  for d in api dashboard app raasid; do [ -d "$PUB/$d" ] && mkdir -p "$DOCROOT/$d" && cp -R "$PUB/$d/." "$DOCROOT/$d/"; done
   # api/index.php يبحث عن ~/signalscope بمستويين للأعلى؛ نثبّت المسار صراحة لأي عمق
   sed -i "s#getenv('SIGNALSCOPE_APP') ?: ''#getenv('SIGNALSCOPE_APP') ?: '$APP'#" "$DOCROOT/api/index.php"
   log "نُسخت api و dashboard و app إلى $DOCROOT"

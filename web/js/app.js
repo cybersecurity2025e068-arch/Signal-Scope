@@ -28,7 +28,7 @@
     scenario: store.get("scenario", "indoorEdge"),
     interval: store.get("interval", 1000),
     alert: store.get("alert", -110),
-    theme: store.get("theme", "auto"),
+    theme: window.AMU ? AMU.get() : store.get("theme", "auto"),
     hist: [], last: null, findings: [], demo: null,
     recording: false, session: null, logView: null,
     speed: store.get("speedHist", []), speedRunning: false,
@@ -75,10 +75,13 @@
   /* ------------------------------------------------------------- theme + palette */
   function applyTheme() {
     const r = document.documentElement;
-    if (ST.theme === "auto") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", ST.theme);
-    const dark = ST.theme === "dark" || (ST.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+    if (window.AMU) {   // سمة مشتركة مع البوابة الموحدة ولوحة الراصد وحوض الأمواج
+      if (ST.theme === "auto") ST.theme = AMU.get();
+      if (r.getAttribute("data-theme") !== ST.theme) AMU.set(ST.theme);
+    } else if (ST.theme === "auto") r.removeAttribute("data-theme"); else r.setAttribute("data-theme", ST.theme);
+    const dark = r.getAttribute("data-theme") === "dark" || (!r.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
     $("themeBtn").innerHTML = svg(dark ? "sun" : "moon");
-    const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = dark ? "#0A0D12" : "#F3F4F6";
+    const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = dark ? "#060A17" : "#FEF8E7";
     PAL = null; renderActive(true);
   }
   let PAL = null;
@@ -702,6 +705,7 @@
     $("recBtn").onclick = toggleRec; $("logRec").onclick = toggleRec;
     $("themeBtn").onclick = () => { const dark = document.documentElement.getAttribute("data-theme") === "dark" || (!document.documentElement.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches); ST.theme = dark ? "light" : "dark"; store.set("theme", ST.theme); applyTheme(); };
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (ST.theme === "auto") applyTheme(); });
+    window.addEventListener("amu-theme", e => { if (ST.theme !== e.detail) { ST.theme = e.detail; store.set("theme", ST.theme); applyTheme(); } });
     $("mRun").onclick = runManual;
     $("ioOut").onclick = () => { if (ST.last && isNum(ST.last.rsrp)) { $("ioOutV").value = ST.last.rsrp; renderIO(); } else toast("لا توجد قيمة RSRP حية. أدخلها يدوياً."); };
     $("ioIn").onclick = () => { if (ST.last && isNum(ST.last.rsrp)) { $("ioInV").value = ST.last.rsrp; renderIO(); } else toast("لا توجد قيمة RSRP حية. أدخلها يدوياً."); };

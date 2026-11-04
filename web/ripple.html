@@ -7,7 +7,10 @@
 <meta name="description" content="محاكي حوض أمواج تفاعلي ثنائي وثلاثي الأبعاد بمحرك FDTD: انعكاس، حيود، تشتت، انكسار، امتصاص.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Readex+Pro:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#FEF8E7">
+<script src="brand/amu.js"></script>
 <style>
 :root{
   --bg:#090C12; --bg2:#0E131C; --panel:#111824; --panel2:#162031; --line:#212B3E; --line2:#2C3953;
@@ -87,20 +90,31 @@ select{background:var(--bg2);border:1px solid var(--line2);border-radius:7px;pad
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-inline-end:4px}
 a{color:var(--signal)}
 </style>
+<link rel="stylesheet" href="brand/amu.css">
+<style>
+/* حوض الأمواج يبقى داكناً (ماء) في السمتين؛ اللوحات تتبع سمة البوابة */
+.stage{border-color:var(--line2)}
+.pal button{background:var(--surface2)}
+.pcard{background:color-mix(in srgb,#0D1424 92%,transparent);color:#F8FAFC}
+.pcard .h,.pcard .v span{color:#94A3B8}
+.hud .pill{background:rgba(6,10,23,.8);color:#cbd5e1;border-color:rgba(245,158,11,.3)}
+.hud .pill b{color:#FDE68A}
+</style>
 </head>
 <body>
 <div class="app">
   <header class="top">
-    <div class="brand">
-      <div class="mark"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#62D2FF" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="2.2"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9"/><path d="M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8" opacity=".55"/></svg></div>
-      <div><h1>حوض الأمواج</h1><p>محرك FDTD لمعادلة الموجة · انعكاس · حيود · تشتت · انكسار · امتصاص</p></div>
+    <div class="brand amu-hide-embed">
+      <span class="amu-crest" style="width:44px;height:44px"><img src="brand/crest.svg" alt="شعار جامعة المعقل الدولية"></span>
+      <div><h1>حوض الأمواج</h1><p>جامعة المعقل الدولية · محرك FDTD لمعادلة الموجة: انعكاس، حيود، تشتت، انكسار، امتصاص</p></div>
     </div>
     <div class="bar">
       <button class="btn pri" id="bPlay" type="button">إيقاف مؤقت</button>
       <button class="btn" id="bStep" type="button" title="خطوة واحدة">خطوة</button>
       <button class="btn" id="bClear" type="button" title="مسح الأمواج مع إبقاء العناصر">مسح الأمواج</button>
       <div class="seg" role="group" aria-label="نمط العرض"><button type="button" id="v2" aria-pressed="true">2D</button><button type="button" id="v3" aria-pressed="false">3D</button></div>
-      <a class="btn" href="index.html">راصد الإشارة</a>
+      <button class="btn" id="bTheme" type="button" title="الوضع الليلي/النهاري">☾</button>
+      <a class="btn amu-hide-embed" href="index.html">راصد الإشارة</a>
     </div>
   </header>
 
@@ -755,6 +769,9 @@ function setMode(m) {
 function setView(v) { S.view = v; $("sView").value = v; S.inten.fill(0); legend(); }
 function toastHint(t) { $("hHint").textContent = t; }
 $("v2").onclick = () => setMode("2d"); $("v3").onclick = () => setMode("3d");
+const themeIcon = () => { $("bTheme").textContent = window.AMU && AMU.get() === "dark" ? "☀" : "☾"; };
+$("bTheme").onclick = () => { if (window.AMU) AMU.toggle(); themeIcon(); };
+window.addEventListener("amu-theme", themeIcon); themeIcon();
 $("bPlay").onclick = () => { S.running = !S.running; $("bPlay").textContent = S.running ? "إيقاف مؤقت" : "تشغيل"; $("bPlay").classList.toggle("pri", S.running); };
 $("bStep").onclick = () => { for (let k = 0; k < S.speed; k++) step(); };
 $("bClear").onclick = clearWaves;

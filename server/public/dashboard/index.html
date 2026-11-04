@@ -4,17 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>لوحة راصد الإشارة</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 20h3v-4H2zm5 0h3v-8H7zm5 0h3V8h-3zm5 0h3V4h-3z' fill='%232f7cf6'/%3E%3C/svg%3E">
+<title>لوحة الراصد · جامعة المعقل الدولية</title>
+<meta name="theme-color" content="#FEF8E7">
+<!-- هوية جامعة المعقل الدولية مشتركة مع راصد الإشارة وحوض الأمواج (مجلد app على الاستضافة) -->
+<script src="../app/brand/amu.js"></script>
+<link rel="icon" href="../app/brand/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="vendor/maplibre-gl.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Readex+Pro:wght@400;600;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="dashboard.css">
+<link rel="stylesheet" href="../app/brand/amu.css">
 </head>
 <body>
 <div id="auth" class="auth" hidden>
   <form class="card authcard" id="authForm" autocomplete="on">
-    <h1>لوحة راصد الإشارة</h1>
+    <span class="amu-crest" style="width:72px;height:72px;margin:0 auto"><img src="../app/brand/crest.svg" alt="شعار جامعة المعقل الدولية"></span>
+    <h1 style="text-align:center">لوحة الراصد</h1>
+    <p class="muted" style="text-align:center;margin:-6px 0 0">جامعة المعقل الدولية · قسم هندسة الأمن السيبراني</p>
     <p class="muted" id="authHint">سجّل الدخول لمتابعة الجلسات والتقارير.</p>
     <label class="f" id="setupRow" hidden>رمز الإعداد (setup_key من config.php)<input class="inp" id="aSetup" type="password" dir="ltr" autocomplete="off"></label>
     <label class="f">اسم المستخدم<input class="inp" id="aUser" dir="ltr" autocomplete="username" required></label>
@@ -26,7 +32,7 @@
 
 <div id="shell" class="shell" hidden>
   <header class="top">
-    <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 20h3v-4H2zm5 0h3v-8H7zm5 0h3V8h-3zm5 0h3V4h-3z"/></svg>راصد الإشارة</div>
+    <div class="brand amu-hide-embed"><span class="amu-crest" style="width:36px;height:36px"><img src="../app/brand/crest.svg" alt="شعار جامعة المعقل الدولية"></span><span>لوحة الراصد<small style="display:block;font-size:11px;font-weight:600;color:var(--muted)">جامعة المعقل الدولية</small></span></div>
     <nav class="nav" id="nav">
       <a href="#/overview">نظرة عامة</a>
       <a href="#/sessions">الجلسات</a>
