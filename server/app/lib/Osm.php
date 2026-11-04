@@ -9,7 +9,7 @@ final class Osm
 {
     public const TILE = 0.02;
     public const DEFAULT_H = 7.0;
-    private const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+    private const ENDPOINTS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
 
     public static function tileKey(float $lat, float $lon): string
     {
@@ -35,8 +35,9 @@ final class Osm
         $st->execute($tiles);
         $have = [];
         foreach ($st as $r) {
-            // المحاولات الفاشلة تُعاد بعد 6 ساعات
-            if ($r['status'] === 'ok' || strtotime($r['fetched_at'] . ' UTC') > time() - 6 * 3600) $have[$r['tile']] = $r['status'];
+            // المربع جاهز فقط إن جُلب بنجاح. المربع الفاشل يُعاد بعد 30 دقيقة، ولا نحلّل بدونه
+            if ($r['status'] === 'ok') $have[$r['tile']] = 'ok';
+            elseif (strtotime($r['fetched_at'] . ' UTC') > time() - 1800) $have[$r['tile']] = 'wait';
         }
         $missing = array_values(array_filter($tiles, function ($t) use ($have) { return !isset($have[$t]); }));
         $fetched = 0;
@@ -53,19 +54,20 @@ final class Osm
             }
         }
         ss_db_alive();
-        $pending = 0;
-        foreach ($tiles as $t) if (!isset($have[$t])) $pending++;
-        return max(0, $pending - $fetched);
+        // ما زال ناقصاً: المربعات المنتظِرة + ما لم نصل إليه + ما فشل الآن
+        $st = $db->prepare("SELECT COUNT(*) FROM osm_tiles WHERE status = 'ok' AND tile IN ($in)");
+        $st->execute($tiles);
+        return count($tiles) - (int)$st->fetchColumn();
     }
 
     private static function fetchTile(string $t): int
     {
         [$a, $b] = array_map('intval', explode(':', $t));
         $s = $a * self::TILE; $w = $b * self::TILE; $n = $s + self::TILE; $e = $w + self::TILE;
-        $q = sprintf('[out:json][timeout:90];way["building"](%.5f,%.5f,%.5f,%.5f);out tags geom;', $s, $w, $n, $e);
+        $q = sprintf('[out:json][timeout:45];way["building"](%.5f,%.5f,%.5f,%.5f);out tags geom;', $s, $w, $n, $e);
         $json = null; $last = null;
         foreach (self::ENDPOINTS as $ep) {
-            try { $json = Net::post($ep, 'data=' . rawurlencode($q), 120); break; } catch (Throwable $ex) { $last = $ex; }
+            try { $json = Net::post($ep, 'data=' . rawurlencode($q), 50); break; } catch (Throwable $ex) { $last = $ex; }
         }
         if ($json === null) throw $last ?: new RuntimeException('overpass');
         $d = json_decode($json, true);
@@ -89,6 +91,10 @@ final class Osm
         }
         $db->prepare('REPLACE INTO osm_tiles (tile, fetched_at, buildings, status) VALUES (?, UTC_TIMESTAMP(), ?, ?)')->execute([$t, $cnt, 'ok']);
         $db->commit();
+        // قراءات حُلّلت قبل وصول مباني هذا المربع (أو مسارها يمر به) تُعاد
+        $pad = 0.01;
+        $db->prepare('DELETE l FROM sample_loss l JOIN samples s ON s.id = l.sample_id WHERE s.lat BETWEEN ? AND ? AND s.lon BETWEEN ? AND ?')
+           ->execute([$s - $pad, $n + $pad, $w - $pad, $e + $pad]);
         return $cnt;
     }
 
