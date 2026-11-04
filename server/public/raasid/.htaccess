@@ -1,0 +1,8 @@
+# ملف التطبيق يُنزَّل كملف أندرويد (لا يُفتح كنص) ولا يُخزَّن قديماً
+AddType application/vnd.android.package-archive .apk
+<IfModule mod_headers.c>
+  <FilesMatch "\.apk$">
+    Header set Content-Disposition "attachment; filename=SignalScope.apk"
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>

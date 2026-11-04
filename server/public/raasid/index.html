@@ -123,6 +123,8 @@
       <span class="date" id="dt"></span><span class="gmt">GMT+3</span>
     </div>
     <div class="acts">
+      <a class="gbtn soft" id="apkBtn" href="SignalScope.apk" download title="تحميل تطبيق أندرويد من خادم الجامعة">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path stroke-linecap="round" d="M12 8v6m-3-3l3 3 3-3"/></svg><span class="txt" id="apkTxt">تطبيق أندرويد</span></a>
       <a class="gbtn" href="/amu/" title="بوابة قسم هندسة الأمن السيبراني">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg><span class="txt">العودة للبوابة</span></a>
       <button class="gbtn soft" id="themeBtn" type="button" aria-label="تبديل السمة">
@@ -242,6 +244,12 @@
     }).catch(function () { el.dataset.state = "down"; $("srvTxt").textContent = "الخادم لا يستجيب"; });
   }
   ping(); setInterval(ping, 60000);
+  // رقم نسخة التطبيق وحجمها على زر التحميل
+  fetch("SignalScope.json", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+    if (!j) { $("apkBtn").hidden = true; return; }
+    $("apkTxt").textContent = "تطبيق أندرويد · نسخة " + j.build;
+    $("apkBtn").title = "تحميل تطبيق أندرويد (" + (j.size / 1048576).toFixed(1) + " MB) من خادم الجامعة";
+  }).catch(function () {});
 })();
 </script>
 <!-- شريط «أنظمة المعقل» الموحّد (amu-nav.js) كما في كل تفرعات البوابة -->

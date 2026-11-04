@@ -60,7 +60,10 @@ final class Updater
         }
         $log[] = "copied $n files";
 
-        // 3) ترقية قاعدة البيانات (آمنة للتكرار)
+        // 3) أحدث APK من إصدارات GitHub إلى خادمك (تنزيل أسرع وأضمن من الهاتف)
+        try { $log[] = self::fetchApk($docRoot . '/raasid'); } catch (Throwable $e) { $log[] = 'apk: ' . $e->getMessage(); }
+
+        // 4) ترقية قاعدة البيانات (آمنة للتكرار)
         require_once SS_APP_DIR . '/lib/Schema.php';
         Schema::apply(ss_db());
         $log[] = 'schema applied';
@@ -70,6 +73,27 @@ final class Updater
         @file_put_contents(SS_APP_DIR . '/data/deployed.json', json_encode($info));
         if (function_exists('opcache_reset')) @opcache_reset();
         return ['ok' => true, 'deployed' => $info, 'log' => $log];
+    }
+
+    /** ينسخ أحدث SignalScope-N.apk من إصدار «latest» إلى raasid/SignalScope.apk مع ملف الإصدار */
+    public static function fetchApk(string $dir): string
+    {
+        $rel = json_decode(self::fetch('https://api.github.com/repos/' . self::REPO . '/releases/tags/latest'), true);
+        $best = null;
+        foreach (($rel['assets'] ?? []) as $a) {
+            if (preg_match('/^SignalScope-(\d+)\.apk$/', (string)($a['name'] ?? ''), $m) && (!$best || (int)$m[1] > $best[0])) $best = [(int)$m[1], $a];
+        }
+        if (!$best) return 'apk: no asset';
+        $meta = $dir . '/SignalScope.json';
+        $cur = is_file($meta) ? json_decode((string)file_get_contents($meta), true) : null;
+        if (is_array($cur) && ($cur['build'] ?? 0) === $best[0] && is_file($dir . '/SignalScope.apk')) return 'apk: build ' . $best[0] . ' already present';
+        $data = self::fetch((string)$best[1]['browser_download_url']);
+        if (strlen($data) !== (int)$best[1]['size'] || substr($data, 0, 2) !== 'PK') throw new RuntimeException('APK download incomplete');
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
+        file_put_contents($dir . '/SignalScope.apk.tmp', $data);
+        rename($dir . '/SignalScope.apk.tmp', $dir . '/SignalScope.apk');
+        file_put_contents($meta, json_encode(['build' => $best[0], 'size' => strlen($data), 'sha256' => hash('sha256', $data), 'at' => gmdate('c')]));
+        return 'apk: build ' . $best[0] . ' (' . round(strlen($data) / 1048576, 2) . ' MB)';
     }
 
     private static function latestSha(): ?string
