@@ -24,9 +24,10 @@ function ss_config(): array
     return $cfg;
 }
 
-function ss_db(): PDO
+function ss_db(bool $reconnect = false): PDO
 {
     static $pdo = null;
+    if ($reconnect) $pdo = null;
     if ($pdo === null) {
         $c = ss_config()['db'];
         $pdo = new PDO($c['dsn'], $c['user'], $c['pass'], [
@@ -37,4 +38,11 @@ function ss_db(): PDO
         $pdo->exec("SET time_zone = '+00:00'");
     }
     return $pdo;
+}
+
+/** يعيد اتصالاً صالحاً: الاستضافة تغلق الاتصال الخامل بسرعة (MySQL server has gone away) */
+function ss_db_alive(): PDO
+{
+    try { ss_db()->query('SELECT 1'); return ss_db(); }
+    catch (Throwable $e) { return ss_db(true); }
 }

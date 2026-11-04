@@ -29,7 +29,7 @@ final class Osm
     public static function ensure(array $tiles, int $maxFetch, array &$log): int
     {
         if (!$tiles) return 0;
-        $db = ss_db();
+        $db = ss_db_alive();
         $in = implode(',', array_fill(0, count($tiles), '?'));
         $st = $db->prepare("SELECT tile, status, fetched_at FROM osm_tiles WHERE tile IN ($in)");
         $st->execute($tiles);
@@ -47,10 +47,12 @@ final class Osm
                 $n = self::fetchTile($t);
                 $log[] = "osm $t: $n";
             } catch (Throwable $e) {
+                $db = ss_db_alive();
                 $db->prepare('REPLACE INTO osm_tiles (tile, fetched_at, buildings, status) VALUES (?, UTC_TIMESTAMP(), 0, ?)')->execute([$t, 'error']);
                 $log[] = "osm $t error: " . substr($e->getMessage(), 0, 120);
             }
         }
+        ss_db_alive();
         $pending = 0;
         foreach ($tiles as $t) if (!isset($have[$t])) $pending++;
         return max(0, $pending - $fetched);
@@ -68,7 +70,7 @@ final class Osm
         if ($json === null) throw $last ?: new RuntimeException('overpass');
         $d = json_decode($json, true);
         if (!is_array($d) || !isset($d['elements'])) throw new RuntimeException('رد Overpass غير صالح');
-        $db = ss_db();
+        $db = ss_db_alive();   // الطلب قد يستغرق دقيقة فيُغلَق الاتصال
         $db->beginTransaction();
         $ins = $db->prepare('INSERT IGNORE INTO buildings (id, tile, min_lat, min_lon, max_lat, max_lon, height_m, height_src, poly) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $cnt = 0;

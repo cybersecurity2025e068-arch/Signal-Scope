@@ -61,16 +61,16 @@ final class Obstacles
               AND est_radius_m <= " . self::MAX_RADIUS . " ORDER BY last_seen DESC LIMIT 300")->fetchAll();
         $osmBudget = 6;
         $stats = ['cells' => 0, 'samples' => 0, 'skipped_osm' => 0, 'dem' => []];
-        $qNew = $db->prepare('SELECT s.id, s.lat, s.lon, s.rsrp, s.rssi, s.arfcn, s.tech FROM samples s
-            LEFT JOIN sample_loss l ON l.sample_id = s.id
-            WHERE s.cell_ref = ? AND s.lat IS NOT NULL AND (s.rsrp IS NOT NULL OR s.rssi IS NOT NULL) AND l.sample_id IS NULL
-            LIMIT 3000');
-        $qAll = $db->prepare('SELECT lat, lon, rsrp, rssi, arfcn, tech FROM samples
-            WHERE cell_ref = ? AND lat IS NOT NULL AND (rsrp IS NOT NULL OR rssi IS NOT NULL) ORDER BY ts DESC LIMIT 20000');
-
         foreach ($cells as $c) {
             if (microtime(true) - $t0 > $budget) break;
             $cid = (int)$c['id']; $tLat = (float)$c['est_lat']; $tLon = (float)$c['est_lon'];
+            $db = ss_db_alive();
+            $qNew = $db->prepare('SELECT s.id, s.lat, s.lon, s.rsrp, s.rssi, s.arfcn, s.tech FROM samples s
+            LEFT JOIN sample_loss l ON l.sample_id = s.id
+            WHERE s.cell_ref = ? AND s.lat IS NOT NULL AND (s.rsrp IS NOT NULL OR s.rssi IS NOT NULL) AND l.sample_id IS NULL
+                LIMIT 3000');
+            $qAll = $db->prepare('SELECT lat, lon, rsrp, rssi, arfcn, tech FROM samples
+            WHERE cell_ref = ? AND lat IS NOT NULL AND (rsrp IS NOT NULL OR rssi IS NOT NULL) ORDER BY ts DESC LIMIT 20000');
             $qNew->execute([$cid]);
             $rows = $qNew->fetchAll();
             if (!$rows) continue;
@@ -90,6 +90,10 @@ final class Obstacles
                 $demOK = $demOK && $stats['dem'][$tn];
             }
 
+            // التنزيلات الخارجية أعلاه قد تُسقط الاتصال: نعيد الاتصال ونحضّر الاستعلام من جديد
+            $db = ss_db_alive();
+            $qAll = $db->prepare('SELECT lat, lon, rsrp, rssi, arfcn, tech FROM samples
+                WHERE cell_ref = ? AND lat IS NOT NULL AND (rsrp IS NOT NULL OR rssi IS NOT NULL) ORDER BY ts DESC LIMIT 20000');
             // P0: «أفضل مسار مقاس» للخلية
             $qAll->execute([$cid]);
             $vals = [];
@@ -129,6 +133,7 @@ final class Obstacles
 
     private static function flush(array $rows): void
     {
+        ss_db_alive();
         $ph = '(' . implode(',', array_fill(0, 10, '?')) . ')';
         $st = ss_db()->prepare('INSERT IGNORE INTO sample_loss (sample_id, cell_ref, dist_m, excess, terrain, buildings, indoor, residual, n_buildings, terrain_ok) VALUES '
             . implode(',', array_fill(0, count($rows), $ph)));
