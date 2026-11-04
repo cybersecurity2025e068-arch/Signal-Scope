@@ -13,7 +13,7 @@ U="$(id -un)"
 # العمل من مجلد التطبيق، لا من نسخة المستودع: أي ملف يُنشأ هناك (مثل error_log) يمنع cPanel من النشر التالي
 cd "$APP" || exit 0
 log() { echo "[$(date '+%F %T')] $*"; }
-rand() { head -c 96 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c "${1:-24}"; }
+rand() { head -c 192 /dev/urandom | base64 | tr -dc 'A-HJ-NP-Za-km-np-z2-9' | head -c "${1:-24}"; }  # بلا 0 O o 1 l I
 
 # أحدث PHP متاح لأوامر الإعداد (الكود يعمل على 7.4+)
 PHP=""
@@ -122,6 +122,7 @@ write_info() { # $1 user  $2 password  $3 enroll key
     echo "لوحة التحكم:   https://${DOMAIN:-نطاقك}/dashboard/"
     echo "اسم المستخدم:  $1"
     echo "كلمة المرور:   $2"
+    echo "(16 حرفاً ورقماً إنجليزياً بلا مسافات، ولا تحوي 0 أو O أو 1 أو l أو I)"
     echo
     echo "ربط الهاتف (التطبيق ← الإعدادات ← المزامنة مع الخادم):"
     echo "عنوان الخادم:  https://${DOMAIN:-نطاقك}"
@@ -149,7 +150,7 @@ if [ -n "$ROT_WANT" ] && [ "$ROT_WANT" != "$ROT_DONE" ]; then
       read -r _ AUSER APASS ENROLL <<< "$R"
       write_info "$AUSER" "$APASS" "$ENROLL"
       echo "$ROT_WANT" > "$APP/.rotated"
-      log "دُوّرت كلمة مرور المدير ورمز التسجيل؛ القيم الجديدة في $INFO"
+      log "دُوّرت كلمة مرور المدير (وتم التحقق منها) ورمز التسجيل؛ القيم الجديدة في $INFO"
     else
       log "فشل تدوير الأسرار: $R"
     fi
