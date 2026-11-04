@@ -98,6 +98,20 @@ try {
             }
             Http::json(['ok' => true, 'run' => $r, 'log' => array_slice($log, 0, 50), 'status' => Obstacles::status()]);
         }
+        if (($_GET['action'] ?? '') === 'diag') {   // إحصاءات مجمعة للتحقق من التحليل (بلا بيانات شخصية)
+            $db = ss_db();
+            $rows = function (string $sql) use ($db) { return $db->query($sql)->fetchAll(); };
+            Http::json(['ok' => true,
+                'by_speed' => $rows("SELECT CASE WHEN s.speed IS NULL THEN 'unknown' WHEN s.speed < 1 THEN '0-1' WHEN s.speed < 3 THEN '1-3' WHEN s.speed < 8 THEN '3-8' ELSE '8+' END band,
+                    COUNT(*) n, ROUND(100*AVG(l.indoor > 0),1) indoor_pct, ROUND(100*AVG(l.n_buildings > 0),1) blocked_pct, ROUND(AVG(l.excess),1) excess, ROUND(AVG(s.acc),1) acc
+                    FROM sample_loss l JOIN samples s ON s.id = l.sample_id GROUP BY band ORDER BY band"),
+                'by_dist' => $rows("SELECT CASE WHEN l.dist_m < 100 THEN '<100' WHEN l.dist_m < 300 THEN '100-300' WHEN l.dist_m < 700 THEN '300-700' WHEN l.dist_m < 1500 THEN '700-1500' ELSE '1500+' END band,
+                    COUNT(*) n, ROUND(100*AVG(l.n_buildings > 0),1) blocked_pct, ROUND(AVG(l.buildings),1) bld_db, ROUND(AVG(l.excess),1) excess
+                    FROM sample_loss l GROUP BY band ORDER BY MIN(l.dist_m)"),
+                'acc' => $rows("SELECT ROUND(AVG(acc),1) avg_acc, ROUND(100*AVG(acc > 15),1) pct_over_15m FROM samples WHERE lat IS NOT NULL"),
+                'cells_radius' => $rows("SELECT CASE WHEN est_radius_m < 100 THEN '<100' WHEN est_radius_m < 300 THEN '100-300' WHEN est_radius_m < 1500 THEN '300-1500' ELSE '1500+' END band, COUNT(*) n
+                    FROM cells WHERE est_lat IS NOT NULL GROUP BY band")]);
+        }
         if ($method === 'POST') Http::json(Updater::run((string)($_SERVER['DOCUMENT_ROOT'] ?? '')));
         $f = SS_APP_DIR . '/data/deployed.json';
         $q = function (string $sql) { return (int)ss_db()->query($sql)->fetchColumn(); };
