@@ -20,19 +20,21 @@ final class Updater
         if (!@mkdir($tmp, 0700, true) && !is_dir($tmp)) throw new RuntimeException('تعذّر إنشاء مجلد مؤقت');
 
         $sha = self::latestSha();
-        $log[] = 'commit ' . ($sha ?: '?');
+        $log[] = 'commit ' . ($sha ? substr($sha, 0, 12) : '?');
+        // التنزيل برقم الـ commit لا باسم الفرع: رابط الفرع قد يعيد نسخة قديمة مخزّنة مؤقتاً
+        $ref = $sha ?: 'refs/heads/' . self::BRANCH;
 
         // 1) التنزيل والفك: zip إن وُجد ZipArchive، وإلا tar.gz عبر PharData
         if (class_exists('ZipArchive')) {
             $file = $tmp . '/src.zip';
-            self::download('https://codeload.github.com/' . self::REPO . '/zip/refs/heads/' . self::BRANCH, $file);
+            self::download('https://codeload.github.com/' . self::REPO . '/zip/' . $ref, $file);
             $z = new ZipArchive();
             if ($z->open($file) !== true) throw new RuntimeException('ملف zip تالف');
             $z->extractTo($tmp . '/x');
             $z->close();
         } elseif (class_exists('PharData')) {
             $file = $tmp . '/src.tar.gz';
-            self::download('https://codeload.github.com/' . self::REPO . '/tar.gz/refs/heads/' . self::BRANCH, $file);
+            self::download('https://codeload.github.com/' . self::REPO . '/tar.gz/' . $ref, $file);
             $p = new PharData($file);
             $p->extractTo($tmp . '/x', null, true);
         } else {
@@ -63,7 +65,7 @@ final class Updater
         $log[] = 'schema applied';
 
         self::rmrf($tmp);
-        $info = ['sha' => $sha, 'at' => gmdate('c'), 'files' => $n];
+        $info = ['sha' => $sha ? substr($sha, 0, 12) : null, 'at' => gmdate('c'), 'files' => $n];
         @file_put_contents(SS_APP_DIR . '/data/deployed.json', json_encode($info));
         if (function_exists('opcache_reset')) @opcache_reset();
         return ['ok' => true, 'deployed' => $info, 'log' => $log];
@@ -73,7 +75,7 @@ final class Updater
     {
         try {
             $j = json_decode(self::fetch('https://api.github.com/repos/' . self::REPO . '/commits/' . self::BRANCH), true);
-            return is_array($j) && isset($j['sha']) ? substr((string)$j['sha'], 0, 12) : null;
+            return is_array($j) && isset($j['sha']) && preg_match('/^[0-9a-f]{40}$/', (string)$j['sha']) ? (string)$j['sha'] : null;
         } catch (Throwable $e) {
             return null;
         }
