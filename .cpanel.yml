@@ -14,3 +14,5 @@ deployment:
     - /bin/mkdir -p $HOMEDIR/public_html/raasid && /bin/cp -R server/public/raasid/. $HOMEDIR/public_html/raasid/
     - /bin/cp -R server/app/lib server/app/cron server/app/bin server/app/rotate.id server/app/data server/app/bootstrap.php server/app/schema.sql server/app/config.example.php server/app/.htaccess $HOMEDIR/signalscope/
     - cd $HOMEDIR/signalscope && /bin/bash $HOMEDIR/signalscope/bin/auto-setup.sh >> $HOMEDIR/signalscope/install.log 2>&1 || true
+    - /bin/mkdir -p $HOMEDIR/public_html/isp $HOMEDIR/isppanel && /bin/cp -R isp/public/. $HOMEDIR/public_html/isp/ && /bin/cp -R isp/app/. $HOMEDIR/isppanel/
+    - PHPBIN=$(ls /opt/cpanel/ea-php8*/root/usr/bin/php /opt/cpanel/ea-php74/root/usr/bin/php 2>/dev/null | tail -1); ${PHPBIN:-php} $HOMEDIR/isppanel/bin/link-config.php $HOMEDIR/public_html/isp/index.php >> $HOMEDIR/isppanel/install.log 2>&1 || true

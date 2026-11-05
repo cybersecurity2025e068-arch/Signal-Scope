@@ -10,3 +10,4 @@
 - واجهة API تُستدعى بالصيغة `api/index.php?r=/v1/...` (لا يعتمد على mod_rewrite).
 - النشر: cPanel ← Git Version Control ← Update from Remote ← Deploy HEAD Commit (`.cpanel.yml` و `server/app/bin/auto-setup.sh`).
 - نسخة الحاسوب تُنشر تلقائياً على GitHub Pages من مجلد `web/`، وملف APK يُبنى تلقائياً في GitHub Actions.
+- مجلد `isp/` نسخة من لوحة إدارة مشتركي الإنترنت (المصدر: مستودع `ERTH-ASP`)، تُنشر إلى `public_html/isp` و `~/isppanel` عبر `Updater` و `.cpanel.yml`، وتستخدم قاعدة بيانات راصد الإشارة بجداول منفصلة.

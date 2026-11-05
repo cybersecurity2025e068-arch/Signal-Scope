@@ -60,6 +60,15 @@ final class Updater
         }
         $log[] = "copied $n files";
 
+        // 2b) لوحة إدارة المشتركين: isp/public ← public_html/isp و isp/app ← ~/isppanel
+        if (is_dir($src . '/isp/public') && is_dir($src . '/isp/app')) {
+            $ispApp = dirname(SS_APP_DIR) . '/isppanel';
+            $m = self::copyDir($src . '/isp/public', $docRoot . '/isp') + self::copyDir($src . '/isp/app', $ispApp);
+            $isp_index = $docRoot . '/isp/index.php';
+            $linked = include $ispApp . '/bin/link-config.php';
+            $log[] = "isp: $m files" . (is_array($linked) && $linked ? ' · ' . implode(', ', $linked) : '');
+        }
+
         // 3) أحدث APK من إصدارات GitHub إلى خادمك (تنزيل أسرع وأضمن من الهاتف)
         try { $log[] = self::fetchApk($docRoot . '/raasid'); } catch (Throwable $e) { $log[] = 'apk: ' . $e->getMessage(); }
 
