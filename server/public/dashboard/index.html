@@ -19,7 +19,7 @@
 </head>
 <body>
 <div id="auth" class="auth" hidden>
-  <form class="card authcard" id="authForm" autocomplete="on">
+  <form class="card authcard" id="authForm" autocomplete="on" data-no-forgot>
     <span class="amu-crest" style="width:72px;height:72px;margin:0 auto"><img src="../app/brand/crest.svg" alt="شعار جامعة المعقل الدولية"></span>
     <h1 style="text-align:center">لوحة الراصد</h1>
     <p class="muted" style="text-align:center;margin:-6px 0 0">جامعة المعقل الدولية · قسم هندسة الأمن السيبراني</p>
@@ -29,6 +29,14 @@
     <label class="f">كلمة المرور<input class="inp" id="aPass" type="password" dir="ltr" autocomplete="current-password" required></label>
     <button class="btn primary" id="aBtn" type="submit">دخول</button>
     <a class="btn" href="../raasid/admin/" style="justify-content:center">دخول المدير ونائبه بحساب البوابة (Google)</a>
+    <details class="forgot"><summary>نسيت كلمة المرور؟</summary>
+      <ol class="note" style="margin:6px 0 0;padding-inline-start:20px;line-height:1.9">
+        <li>ادخل بحساب Google للمدير أو نائبه من الزر أعلاه (لا يحتاج كلمة مرور اللوحة).</li>
+        <li>في الصفحة الرئيسية لمركز الإدارة: بطاقة «كلمات المرور» ← «كلمة مرور جديدة» لحسابك.</li>
+        <li>عد إلى هنا وادخل بكلمة المرور الجديدة.</li>
+      </ol>
+      <p class="note" style="margin:6px 0 0">إن تعذّر دخول Google: راسل الدعم الفني لإعادة تعيينها من الخادم.</p>
+    </details>
     <p class="err" id="aErr" hidden></p>
   </form>
 </div>

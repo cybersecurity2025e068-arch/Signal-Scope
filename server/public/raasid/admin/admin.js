@@ -44,6 +44,7 @@
   function lgErr(m) { const e = $("lgErr"); e.textContent = m || ""; e.hidden = !m; }
   function showLogin(msg) { ME = null; $("shell").hidden = true; $("login").hidden = false; if (msg) lgErr(msg); bootAuth(); }
   $("lgGoogle").onclick = () => { lgErr(""); if (window.AMU_AUTH) window.AMU_AUTH.signIn(); else lgErr("خدمة الدخول تُحمَّل… أعد المحاولة بعد لحظة."); };
+  $("lgForgot").onclick = () => { if (window.AMU_BRIDGE && AMU_BRIDGE.recover) AMU_BRIDGE.recover({ user: $("lgUser").value }); };
   $("lgStaff").onsubmit = async e => {
     e.preventDefault(); lgErr("");
     try { await window.AMU_AUTH.signInStaff($("lgUser").value, $("lgPass").value); $("lgPass").value = ""; } catch (x) { lgErr(x.message); }
@@ -115,8 +116,23 @@
         ${ME.role === "owner" ? `<a href="https://console.firebase.google.com/project/${esc(window.__fbProject || "almaqal-uni")}/authentication/users" target="_blank" rel="noopener"><b>حسابات Firebase</b><span>مستخدمو تسجيل الدخول في البوابة</span></a>` : ""}
       </div>
       ${off.length ? `<div class="card" style="margin-top:14px"><h3>تفرعات غير ظاهرة الآن</h3>${off.map(s => `<span class="pill-x">${esc(s.name)} · <span class="st ${s.status}">${esc(s.status_ar)}</span></span>`).join(" ")}</div>` : ""}
+      ${ME.can.dashboard ? `<div class="card" style="margin-top:14px"><h3>كلمات المرور</h3>
+        <p class="note" style="margin-top:0"><b>الأساتذة والمشرفون</b> (اسم مستخدم): طلبات «نسيت كلمة المرور» تصل إلى <a href="/amu/admin/" target="_blank" rel="noopener">طلبات الدعم الفني في لوحة مدير البوابة</a>، ومنها «إعادة تعيين كلمات المرور» بكلمة مؤقتة يغيّرها الأستاذ إجبارياً عند أول دخول.
+        <b>حسابات Google</b>: يستردها صاحبها من Google. <b>لوحة الراصد</b>: عيّن كلمة مرور جديدة هنا.</p>
+        <div class="tablewrap" id="hDash"></div></div>` : ""}
       ${ME.can.audit ? `<div class="card" style="margin-top:14px"><h3>آخر العمليات</h3><div class="tablewrap" id="hAudit"></div></div>` : ""}`;
     if (ME.can.audit) { const a = await api("v1/portal/audit?limit=8"); $("hAudit").innerHTML = auditTable(a.log); }
+    if (ME.can.dashboard) {
+      const d = await api("v1/portal/dash-admins");
+      $("hDash").innerHTML = `<table><tr><th>حساب لوحة الراصد</th><th>أُنشئ</th><th></th></tr>${d.admins.map(x => `<tr><td class="mono" dir="ltr">${esc(x.username)}</td><td>${when(x.created_at)}</td><td><button class="btn sm" data-dp="${esc(x.username)}" type="button">كلمة مرور جديدة</button></td></tr>`).join("")}</table>`;
+      V().querySelectorAll("[data-dp]").forEach(b => b.onclick = () => dialog(`<h2>كلمة مرور جديدة لـ <bdi dir="ltr">${esc(b.dataset.dp)}</bdi></h2>
+        <label class="f">كلمة المرور الجديدة (10 خانات على الأقل، حروف وأرقام)<input class="inp" name="p1" type="password" dir="ltr" minlength="10" required autocomplete="new-password"></label>
+        <label class="f">تأكيدها<input class="inp" name="p2" type="password" dir="ltr" minlength="10" required autocomplete="new-password"></label>`, async f => {
+        if (f.p1.value !== f.p2.value) throw new Error("التأكيد لا يطابق كلمة المرور");
+        await api("v1/portal/dash-password", { username: b.dataset.dp, password: f.p1.value });
+        toast("عُيّنت كلمة المرور الجديدة لـ " + b.dataset.dp);
+      }));
+    }
   }
 
   // ------------------------------------------------------------------ الحسابات
@@ -272,7 +288,7 @@
 
   // ------------------------------------------------------------------ سجل العمليات
   const ACT = { login: "دخول", user_add: "إضافة حساب", user_update: "تعديل حساب", user_delete: "حذف حساب", transfer_owner: "نقل الإدارة", block: "حظر", unblock: "إلغاء حظر",
-    section_add: "إضافة تفرع", section_update: "تعديل تفرع", section_delete: "حذف تفرع", news_add: "نشر إعلان", news_update: "تعديل إعلان", news_delete: "حذف إعلان" };
+    section_add: "إضافة تفرع", section_update: "تعديل تفرع", section_delete: "حذف تفرع", news_add: "نشر إعلان", news_update: "تعديل إعلان", news_delete: "حذف إعلان", dash_password: "كلمة مرور لوحة الراصد" };
   const auditTable = rows => rows.length ? `<table><tr><th>الوقت</th><th>الحساب</th><th>العملية</th><th>الهدف</th><th>التفاصيل</th></tr>${rows.map(a => `<tr><td>${when(a.at)}</td><td class="mono" dir="ltr">${esc(a.email)}</td><td>${esc(ACT[a.action] || a.action)}</td><td class="mono" dir="ltr">${esc(a.target || "")}</td><td class="td-wrap">${esc(a.detail || "")}</td></tr>`).join("")}</table>` : '<div class="empty">لا عمليات بعد</div>';
   async function audit() {
     const r = await api("v1/portal/audit?limit=500");

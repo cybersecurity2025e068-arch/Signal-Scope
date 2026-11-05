@@ -113,6 +113,8 @@ try {
         if ($path === '/v1/portal/stats') Http::json(Portal::stats($me, Http::intParam('days', 30, 1, 365)));
         if ($path === '/v1/portal/audit') Http::json(['log' => Portal::auditLog($me, Http::intParam('limit', 300, 1, 2000))]);
         if ($path === '/v1/portal/colleges') Http::json(Portal::colleges());
+        if ($path === '/v1/portal/dash-admins') Http::json(['admins' => Portal::dashAdmins($me)]);
+        if ($path === '/v1/portal/dash-password' && $method === 'POST') Http::json(Portal::setDashPassword($me, (string)($b['username'] ?? ''), (string)($b['password'] ?? '')));
         throw new HttpError(404, 'المسار غير موجود: ' . $path, 'not_found');
     }
 

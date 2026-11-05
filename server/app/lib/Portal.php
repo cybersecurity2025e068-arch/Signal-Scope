@@ -256,6 +256,33 @@ final class Portal
         return ['ok' => true];
     }
 
+    // ------------------------------------------------------------------ حسابات لوحة الراصد بكلمة المرور
+
+    /** أسماء حسابات لوحة الراصد (للمدير ونائبه: استرداد كلمة مرور منسية) */
+    public static function dashAdmins(array $me): array
+    {
+        self::need($me, 'dashboard');
+        return ss_db()->query('SELECT id, username, created_at FROM admins ORDER BY id')->fetchAll();
+    }
+
+    /** تعيين كلمة مرور جديدة لحساب في لوحة الراصد، أو إنشاء الحساب إن لم يوجد */
+    public static function setDashPassword(array $me, string $user, string $pass): array
+    {
+        self::need($me, 'dashboard');
+        if (!preg_match('/^[A-Za-z0-9_.-]{3,64}$/', $user)) throw new HttpError(400, 'اسم المستخدم: 3–64 حرفاً لاتينياً أو أرقاماً', 'bad_username');
+        if (strlen($pass) < 10) throw new HttpError(400, 'كلمة المرور 10 أحرف على الأقل', 'weak_password');
+        if (!preg_match('/[A-Za-z]/', $pass) || !preg_match('/\d/', $pass)) throw new HttpError(400, 'كلمة المرور يجب أن تجمع حروفاً وأرقاماً', 'weak_password');
+        $db = ss_db();
+        $st = $db->prepare('SELECT id FROM admins WHERE username = ?');
+        $st->execute([$user]);
+        $id = $st->fetchColumn();
+        if ($id) $db->prepare('UPDATE admins SET pass_hash = ? WHERE id = ?')->execute([password_hash($pass, PASSWORD_DEFAULT), $id]);
+        else $db->prepare('INSERT INTO admins (username, pass_hash) VALUES (?, ?)')->execute([$user, password_hash($pass, PASSWORD_DEFAULT)]);
+        $db->prepare('DELETE FROM login_fail WHERE ip = ?')->execute([Http::ip()]);
+        self::audit('dash_password', $me['email'], $id ? 'تعيين كلمة مرور جديدة' : 'إنشاء حساب', $user);
+        return ['ok' => true, 'created' => !$id];
+    }
+
     // ------------------------------------------------------------------ التفرعات
 
     public static function sections(): array

@@ -60,14 +60,21 @@
       ".amub-news.info{background:linear-gradient(90deg,#0369a1,#0284c7)}.amub-news.warn{background:linear-gradient(90deg,#b45309,#d97706)}.amub-news.urgent{background:linear-gradient(90deg,#991b1b,#dc2626)}" +
       ".amub-news b{font-weight:900}.amub-news p{margin:0;flex:1}.amub-news small{opacity:.9;font-weight:600}.amub-news button{background:rgba(255,255,255,.2);border:0;color:#fff;border-radius:8px;padding:2px 10px;cursor:pointer;font:inherit}" +
       ".amub-ov{position:fixed;inset:0;z-index:99990;display:grid;place-items:center;padding:16px;background:rgba(2,4,10,.72);backdrop-filter:blur(6px);direction:rtl;font-family:Cairo,'IBM Plex Sans Arabic',sans-serif}" +
-      ".amub-card{max-width:440px;width:100%;text-align:center;padding:26px 22px;border-radius:22px;background:#0D1424;color:#F8FAFC;border:1.5px solid rgba(245,158,11,.55);box-shadow:0 24px 60px rgba(0,0,0,.5)}" +
+      ".amub-card{max-width:440px;width:100%;max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box;text-align:center;padding:26px 22px;border-radius:22px;background:#0D1424;color:#F8FAFC;border:1.5px solid rgba(245,158,11,.55);box-shadow:0 24px 60px rgba(0,0,0,.5)}" +
       ".amub-card img{width:78px;height:78px;border-radius:50%;border:2px solid #FBBF24;background:#060A17;padding:2px}.amub-card h2{margin:12px 0 6px;font:900 20px 'Readex Pro',Cairo,sans-serif}.amub-card p{margin:0 0 16px;color:#cbd5e1}" +
       ".amub-card a,.amub-card button{display:inline-block;margin:4px;padding:8px 16px;border-radius:12px;border:0;cursor:pointer;text-decoration:none;font:800 14px Cairo,sans-serif;background:linear-gradient(135deg,#F59E0B,#B45309);color:#fff}" +
       ".amub-card .soft{background:rgba(245,158,11,.18);color:#FDE68A;border:1px solid rgba(245,158,11,.45)}" +
       ".amub-adm{position:fixed;bottom:12px;inset-inline-start:12px;z-index:99980;direction:rtl;font:700 12px Cairo,sans-serif;background:#0D1424;color:#FDE68A;border:1px solid #F59E0B;border-radius:12px;padding:7px 12px;box-shadow:0 8px 24px rgba(0,0,0,.35)}" +
       ".amub-adm a{color:#FBBF24}.amub-mnt{border:1.5px dashed #F59E0B;border-radius:14px;padding:14px;margin:8px 0;background:rgba(245,158,11,.1);font:700 14px Cairo,sans-serif;direction:rtl}" +
       "[data-amub-hidden]{display:none!important}[data-amub-mnt]>*:not(.amub-mnt){display:none!important}" +
-      ".amub-flag{outline:2px dashed #F59E0B!important;outline-offset:3px}";
+      ".amub-flag{outline:2px dashed #F59E0B!important;outline-offset:3px}" +
+      ".amub-forgot{display:block;width:100%;margin-top:8px;background:none;border:0;color:#D97706;font:800 13px Cairo,sans-serif;cursor:pointer;text-decoration:underline;text-underline-offset:3px}" +
+      ".amub-rc{text-align:right}.amub-rc h2{text-align:center}.amub-tabs{display:flex;gap:6px;margin:4px 0 12px}.amub-tabs button{flex:1;margin:0;background:rgba(245,158,11,.14);color:#FDE68A;border:1px solid rgba(245,158,11,.4)}" +
+      ".amub-tabs button[aria-pressed=true]{background:linear-gradient(135deg,#F59E0B,#B45309);color:#fff}.amub-rc label{display:block;font:700 13px Cairo,sans-serif;color:#cbd5e1;margin:8px 0 3px}" +
+      ".amub-rc input,.amub-rc textarea{width:100%;box-sizing:border-box;padding:9px 11px;border-radius:10px;border:1px solid rgba(245,158,11,.45);background:#060A17;color:#F8FAFC;font:600 14px Cairo,sans-serif}" +
+      ".amub-rc p{margin:6px 0 10px;line-height:1.8;text-align:right}.amub-rc .ok{background:rgba(16,185,129,.15);border:1px solid #10B981;color:#A7F3D0;border-radius:10px;padding:8px 10px}" +
+      ".amub-rc .bad{background:rgba(244,63,94,.15);border:1px solid #F43F5E;color:#FECDD3;border-radius:10px;padding:8px 10px}.amub-rc .row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px}" +
+      ".amub-rc ol{margin:0 0 8px;padding-inline-start:20px;line-height:1.9;color:#cbd5e1;font-size:14px}";
     document.head.appendChild(st);
   }
 
@@ -189,6 +196,92 @@
     } catch (e) { }
   }
 
+  // ------------------------------------------------------------------ نسيت كلمة المرور؟
+  // حسابات الأساتذة (اسم مستخدم) بلا بريد حقيقي: لا يمكن إرسال رابط استرداد آلي، فيصل الطلب إلى المدير
+  // في «طلبات الدعم الفني» بلوحة مدير البوابة، فيعيد تعيين كلمة مؤقتة تُغيَّر إجبارياً عند أول دخول.
+  // حسابات Google (البريد الجامعي و Gmail): الاسترداد من Google نفسها.
+  var REQ = GH || !/(^|\.)it-basra\.com$/.test(location.hostname) ? "https://it-basra.com/amu/requests.php" : "/amu/requests.php";
+  function support() {
+    var s = (window.AMU_ACCESS && AMU_ACCESS.support) || {};
+    return { phone: s.phone || "+9647730477667", emails: s.emails || ["it.basra@gmail.com"] };
+  }
+  function recover(opt) {
+    opt = opt || {};
+    css();
+    var sp = support(), wa = sp.phone.replace(/\D/g, "");
+    var d = document.createElement("div"); d.className = "amub-ov"; d.setAttribute("role", "dialog"); d.setAttribute("aria-modal", "true"); d.setAttribute("aria-label", "استرداد كلمة المرور");
+    d.innerHTML = '<div class="amub-card amub-rc"><h2>استرداد كلمة المرور</h2>' +
+      '<div class="amub-tabs"><button type="button" data-t="staff">اسم مستخدم (أستاذ)</button><button type="button" data-t="google">بريد جامعي أو Gmail</button></div>' +
+      '<div data-p="staff"><p>كلمات مرور الأساتذة لا ترتبط ببريد، لذلك يعيد المدير تعيينها: أرسل الطلب، فيُسلَّم لك كلمة مرور مؤقتة، وتختار كلمة جديدة عند أول دخول.</p>' +
+      '<form><label>اسم المستخدم</label><input name="u" dir="ltr" placeholder="doc01" required autocomplete="username">' +
+      '<label>الاسم الكامل</label><input name="n" required autocomplete="name">' +
+      '<label>رقم الهاتف أو واتساب للتواصل</label><input name="c" dir="ltr" required inputmode="tel" placeholder="07XXXXXXXXX" autocomplete="tel">' +
+      '<label>ملاحظة (اختيارية)</label><input name="m">' +
+      '<input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">' +
+      '<div class="row"><button type="submit">إرسال طلب الاسترداد</button></div></form><div data-msg></div>' +
+      '<p style="margin-top:12px">أو تواصل مباشرة مع الدعم الفني:</p><div class="row">' +
+      '<a class="soft" target="_blank" rel="noopener" href="https://wa.me/' + wa + "?text=" + encodeURIComponent("نسيت كلمة مرور حسابي في بوابة جامعة المعقل. اسم المستخدم: ") + '">واتساب</a>' +
+      '<a class="soft" href="tel:' + esc(sp.phone) + '">اتصال</a></div></div>' +
+      '<div data-p="google" hidden><ol><li>افتح صفحة استرداد حساب Google، وأدخل بريدك.</li><li>اتبع الخطوات: رمز إلى هاتفك أو بريدك الاحتياطي.</li><li>عد إلى البوابة وادخل بزر Google.</li></ol>' +
+      '<div class="row"><a target="_blank" rel="noopener" href="https://accounts.google.com/signin/recovery">استرداد حساب Google</a></div>' +
+      '<p>البريد الجامعي (<bdi dir="ltr">@almaaqal.edu.iq</bdi>) تديره وحدة تقنية المعلومات في الجامعة: إن لم يكن له هاتف احتياطي فراجعها، أو راسل الدعم الفني.</p>' +
+      '<div class="row"><a class="soft" target="_blank" rel="noopener" href="https://wa.me/' + wa + '">واتساب الدعم</a><a class="soft" href="mailto:' + esc(sp.emails[0]) + '?subject=' + encodeURIComponent("استرداد حساب البوابة") + '">بريد الدعم</a></div></div>' +
+      '<div class="row"><button type="button" class="soft" data-close>إغلاق</button></div></div>';
+    document.body.appendChild(d);
+    var tab = function (t) {
+      Array.prototype.forEach.call(d.querySelectorAll("[data-t]"), function (b) { b.setAttribute("aria-pressed", b.dataset.t === t ? "true" : "false"); });
+      Array.prototype.forEach.call(d.querySelectorAll("[data-p]"), function (p) { p.hidden = p.dataset.p !== t; });
+    };
+    tab(opt.google ? "google" : "staff");
+    var close = function () { d.remove(); document.removeEventListener("keydown", onKey); };
+    var onKey = function (e) { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    d.addEventListener("click", function (e) {
+      if (e.target === d || e.target.closest("[data-close]")) return close();
+      var t = e.target.closest("[data-t]"); if (t) tab(t.dataset.t);
+    });
+    var f = d.querySelector("form"), msg = d.querySelector("[data-msg]");
+    if (opt.user) f.u.value = opt.user;
+    var say = function (t, ok) { msg.innerHTML = '<p class="' + (ok ? "ok" : "bad") + '">' + esc(t) + "</p>"; };
+    f.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var u = f.u.value.trim().toLowerCase().split("@")[0], n = f.n.value.trim(), c = f.c.value.trim();
+      if (!/^[a-z0-9._-]{2,40}$/.test(u)) return say("اكتب اسم المستخدم كما سُلِّم لك (مثل doc01).");
+      if (n.length < 3 || c.replace(/\D/g, "").length < 7) return say("اكتب اسمك ورقم هاتف صحيحاً حتى يتواصل معك المدير.");
+      var b = f.querySelector("button[type=submit]"); b.disabled = true;
+      var body = new URLSearchParams({ action: "create", type: "support", name: n, contact: c, website: f.website.value, page: location.href,
+        msg: "[استرداد كلمة المرور] اسم المستخدم: " + u + " — يطلب إعادة تعيين كلمة المرور." + (f.m.value.trim() ? " ملاحظة: " + f.m.value.trim() : "") });
+      fetch(REQ, { method: "POST", body: body }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok || !j.id) throw new Error(j.error || "تعذّر الإرسال"); return j; }); })
+        .then(function (j) { f.hidden = true; say("✓ وصل طلبك برقم " + j.id + ". سيتواصل معك المدير على " + c + " بكلمة مرور مؤقتة، وتختار كلمة جديدة عند أول دخول.", true); })
+        .catch(function (x) { say(x.message + ". تواصل مع الدعم عبر واتساب أو الاتصال بالأسفل."); })
+        .then(function () { b.disabled = false; });
+    });
+    setTimeout(function () { (opt.google ? d.querySelector("[data-t=google]") : f.u).focus(); }, 50);
+    return d;
+  }
+  B.recover = recover;
+
+  // رابط «نسيت كلمة المرور؟» تحت نماذج الدخول وتغيير كلمة المرور في نوافذ البوابة
+  function addForgot(root) {
+    Array.prototype.forEach.call((root || document).querySelectorAll('form input[type="password"][autocomplete="current-password"]'), function (inp) {
+      var f = inp.form; if (!f || f.querySelector(".amub-forgot") || f.hasAttribute("data-no-forgot")) return;
+      css();
+      var b = document.createElement("button"); b.type = "button"; b.className = "amub-forgot"; b.textContent = "نسيت كلمة المرور؟";
+      b.onclick = function () {
+        var u = f.querySelector('input[autocomplete="username"]');
+        var st = window.AMU_AUTH && AMU_AUTH.state;
+        recover({ user: (u && u.value) || (st && st.username) || "" });
+      };
+      f.appendChild(b);
+    });
+  }
+  function watchForms() {
+    addForgot();
+    if (!window.MutationObserver || !document.body) return;
+    var t = null;
+    new MutationObserver(function () { clearTimeout(t); t = setTimeout(addForgot, 120); }).observe(document.body, { childList: true, subtree: true });
+  }
+
   function applyAll() { css(); applyPage(); applyElements(); applyNews(); checkBlocked(); }
 
   function start() {
@@ -201,5 +294,6 @@
     }).catch(function () { /* تعذّر الاتصال: الصفحة تعمل كما هي */ });
   }
   B.refresh = function () { priv = null; start(); };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start); else start();
+  function boot() { watchForms(); start(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();

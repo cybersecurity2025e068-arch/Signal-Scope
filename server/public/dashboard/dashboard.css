@@ -124,3 +124,5 @@ canvas.chart { width: 100%; height: 220px; display: block; }
 .tile b { display: inline-block; }
 td.n { text-align: right; }
 .map, .maplibregl-map { direction: ltr; }
+
+.forgot summary { cursor: pointer; color: #D97706; font-weight: 800; font-size: 13px; text-align: center; }
