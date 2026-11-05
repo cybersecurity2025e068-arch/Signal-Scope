@@ -1,0 +1,7 @@
+# ملفات للتنزيل (لا تُفتح في المتصفح)
+<IfModule mod_headers.c>
+  <FilesMatch "\.js$">
+    Header set Content-Disposition "attachment"
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
