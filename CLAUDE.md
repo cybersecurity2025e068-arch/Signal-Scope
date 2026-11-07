@@ -11,3 +11,20 @@
 - النشر: cPanel ← Git Version Control ← Update from Remote ← Deploy HEAD Commit (`.cpanel.yml` و `server/app/bin/auto-setup.sh`).
 - نسخة الحاسوب تُنشر تلقائياً على GitHub Pages من مجلد `web/`، وملف APK يُبنى تلقائياً في GitHub Actions.
 - مجلد `isp/` نسخة من لوحة إدارة مشتركي الإنترنت (المصدر: مستودع `ERTH-ASP`)، تُنشر إلى `public_html/isp` و `~/isppanel` عبر `Updater` و `.cpanel.yml`، وتستخدم قاعدة بيانات راصد الإشارة بجداول منفصلة.
+
+---
+## العمل المشترك مع حساب البوابة
+
+المشروع يُطوَّر من حسابين لصاحبه نفسه:
+- `cybersecurity2025e068@almaaqal.edu.iq` (هذا المستودع): صاحب البيانات ومنظومة راصد الإشارة.
+- `drdsh.sw2022@gmail.com` (GitHub: `drdshsw2022-byte`، المستودع `almaaqal-kontrol`): البوابة `amu/` وكل أنظمتها.
+
+القواعد الملزمة:
+1. **الملفات المشتركة ليست ملك هذا المستودع:** `amu/amu-nav.js` و `amu/index.html`. مصدرها الوحيد `almaaqal-kontrol/portal/`. أي تعديل عليها (سطر راصد في `SYSTEMS`، محمّل الجسر، كتل `raasid:BEGIN/END`) يتم بـ commit أو Pull Request هناك، لا بـ `AmuLink` ولا بالرفع على الخادم. فحص المراقبة هناك ينبّه كل 15 دقيقة عند أي تعديل مباشر على الخادم.
+2. هذا المستودع يكتب فقط في: `public_html/raasid`، `app`، `api`، `dashboard`، `isp`، و `~/signalscope`، `~/isppanel`.
+3. **لا تحديث ذاتي من GitHub إلى الخادم** (`Updater` عبر `/v1/admin/deploy`)، ولا إجراءا `amu-link` و `amu-nav`. النشر من cPanel ← Git Version Control بضغطة المدير.
+4. لا تُغيَّر كلمة مرور FTP لحساب `deploy@it-basra.com`: تستخدمها البوابة للنشر والنسخ الاحتياطي اليومي. إن احتاج راصد نشراً عبر FTP فلينشئ المدير حساب FTP منفصلاً مجلده `public_html/raasid` فقط.
+5. لا يُكتب رمز أو كلمة مرور في ملف نصي على الخادم ليُنسخ إلى المحادثة (`SETUP-INFO.txt`، `DEPLOY-TOKEN.txt`)؛ المدير يقرأ القيمة من cPanel مباشرة ثم يحذف الملف.
+6. المستودع يبقى **خاصاً**، والحساب محمي بالتحقق بخطوتين (2FA).
+7. قواعد الأمان العامة: لا يُدخل Claude كلمات مرور ولا يغيّر صلاحيات أو إعدادات أمان؛ لا حذف نهائي على الخادم (نقل إلى `/home/itbasra/removed-from-web-2026-10-31`)؛ التجربة أولاً ثم النشر بأمر صريح «انشر».
+---

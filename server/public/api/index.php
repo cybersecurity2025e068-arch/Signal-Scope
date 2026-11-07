@@ -156,15 +156,11 @@ try {
             if (function_exists('opcache_invalidate')) @opcache_invalidate($file, true);
             Http::json(['ok' => true, 'message' => 'أُنشئ رمز جديد في signalscope/DEPLOY-TOKEN.txt وأُلغي القديم', 'at' => gmdate('c')]);
         }
-        if ($method === 'POST' && ($_GET['action'] ?? '') === 'amu-link') {
-            // روابط «منظومة راصد الإشارة» في بوابة القسم /amu/ (إضافة قابلة للتراجع بـ mode=revert)
-            $doc = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
-            Http::json(($_GET['mode'] ?? '') === 'revert' ? AmuLink::revert($doc) : AmuLink::apply($doc));
-        }
-        if ($method === 'POST' && ($_GET['action'] ?? '') === 'amu-nav') {
-            // تعديل منفصل وصريح لقائمة «أنظمة المعقل» المشتركة (amu-nav.js) — mode=revert للتراجع
-            $doc = (string)($_SERVER['DOCUMENT_ROOT'] ?? '');
-            Http::json(['ok' => true, 'nav' => ($_GET['mode'] ?? '') === 'revert' ? AmuLink::revertNav($doc) : AmuLink::applyNav($doc)]);
+        // amu-link و amu-nav متوقفان: ملفات البوابة المشتركة (amu/index.html و amu/amu-nav.js) مصدرها الوحيد
+        // مستودع almaaqal-kontrol/portal، وتُعدَّل بـ commit أو Pull Request هناك (القاعدة 1 و 3 في CLAUDE.md).
+        // AmuLink.php باقٍ في المستودع للمرجع فقط ولا يُستدعى من الواجهة.
+        if (in_array($_GET['action'] ?? '', ['amu-link', 'amu-nav'], true)) {
+            Http::json(['ok' => false, 'error' => 'gone', 'message' => 'هذا الإجراء متوقف: ملفات بوابة القسم (amu/index.html و amu/amu-nav.js) تُعدَّل من مستودع almaaqal-kontrol/portal فقط، لا من راصد الإشارة.'], 410);
         }
         if (($_GET['action'] ?? '') === 'intf') {   // تشغيل/فحص عزل التشويش (إحصاءات مجمعة فقط)
             @set_time_limit(200);
@@ -200,7 +196,11 @@ try {
                 'cells_radius' => $rows("SELECT CASE WHEN est_radius_m < 100 THEN '<100' WHEN est_radius_m < 300 THEN '100-300' WHEN est_radius_m < 1500 THEN '300-1500' ELSE '1500+' END band, COUNT(*) n
                     FROM cells WHERE est_lat IS NOT NULL GROUP BY band")]);
         }
-        if ($method === 'POST') Http::json(Updater::run((string)($_SERVER['DOCUMENT_ROOT'] ?? '')));
+        // التحديث الذاتي من GitHub متوقف: النشر من cPanel ← Git Version Control بضغطة المدير (القاعدة 3 في CLAUDE.md).
+        // Updater.php باقٍ في المستودع للمرجع فقط ولا يُستدعى من الواجهة.
+        if ($method === 'POST') {
+            Http::json(['ok' => false, 'error' => 'gone', 'message' => 'التحديث الذاتي من GitHub متوقف. النشر صار من cPanel فقط: Git Version Control ← Update from Remote ← Deploy HEAD Commit.'], 410);
+        }
         $f = SS_APP_DIR . '/data/deployed.json';
         $q = function (string $sql) { return (int)ss_db()->query($sql)->fetchColumn(); };
         Http::json(['ok' => true, 'version' => SS_VERSION, 'deployed' => is_file($f) ? json_decode((string)file_get_contents($f), true) : null,
